@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { DECOR, HOME_SPAWN, HOME_STATIONS } from '../data/life.js';
+import { HOUSING_ROOMS, childAge, partnerFor } from '../data/legacy.js';
+import { paintWing, wingRooms } from './home-wing.js';
 
 const HALF_WIDTH = 8.8;
 const HALF_DEPTH = 5.9;
@@ -12,6 +14,9 @@ export class HomeView {
     this.obstacles = [];
     this.stationLabels = new Map();
     this.stations = HOME_STATIONS.map(station => ({ ...station }));
+    this.annex = wingRooms(HOUSING_ROOMS[state.home] || []);
+    this.rightEdge = this.annex.at(-1)?.right ?? HALF_WIDTH;
+    this.footprint = [{ left: -HALF_WIDTH, right: HALF_WIDTH, top: -HALF_DEPTH, bottom: HALF_DEPTH }, ...this.annex];
     const target = world.office;
     const palette = state.life?.decor;
     const wallpaper = DECOR.walls.options.find(option => option.id === palette?.walls) || DECOR.walls.options[0];
@@ -79,7 +84,10 @@ export class HomeView {
     wall(0, -5.87, 17.88, 0.17, '#817491', 1.57);
     wall(-8.81, -3.78, 0.17, 4.15, '#8c808f', 1.55);
     wall(-8.81, 2.08, 0.17, 7.55, wallpaper.color, 1.55);
-    wall(8.81, 0, 0.17, 11.8, '#887e93', 0.42);
+    if (this.annex.length) {
+      wall(8.81, -1.64, .17, 8.52, '#887e93', .42);
+      wall(8.81, 5.35, .17, 1.10, '#887e93', .42);
+    } else wall(8.81, 0, 0.17, 11.8, '#887e93', 0.42);
     wall(-5.01, 5.86, 7.57, 0.17, '#8a7184', 0.3);
     wall(4.95, 5.86, 7.72, 0.17, '#8a7184', 0.3);
     wall(-7.2, -1.57, 3.2, 0.14, wallpaper.color);
@@ -194,6 +202,23 @@ export class HomeView {
     box(0.19, 5.96, 2.37, 0.3, 0.09, '#e5b28b', -0.08);
     roomLabel('WORKSPACE', 6.70, 4.55);
 
+    this.stations.push(...paintWing(this.annex, { box, wall, table, mat, sprite, roomLabel }));
+    const legacy = state.life?.legacy;
+    const resident = legacy?.relationship;
+    if (resident?.stage === 'married' || (resident && legacy.bonds[resident.id].lastTime === state.day)) {
+      const partner = partnerFor(resident.id);
+      sprite(partner.sprite, -4.23, 2.47, .04, 1.13);
+      world.label(partner.name, new THREE.Vector3(-4.23, 1.26, 2.47), 'home-guest');
+    }
+    const familyRoom = this.annex.find(room => room.id === 'nursery');
+    for (const [i, child] of (legacy?.children || []).entries()) {
+      const x = familyRoom ? familyRoom.left + 1.04 + 1.34 * i : -3.8 + .88 * i;
+      const z = familyRoom ? -1.13 : 3.06;
+      const size = childAge(child, state.day) >= 13 ? 1.07 : .69;
+      sprite('player', x, z, .03, size);
+      world.label(child.name, new THREE.Vector3(x, size + .15, z), 'home-guest');
+    }
+
     // Fixtures are marked on the floor. The current interaction is also shown in the HUD.
     for (const station of this.stations) {
       const ring = new THREE.Mesh(new THREE.RingGeometry(0.31, 0.36, 16),
@@ -226,16 +251,33 @@ export class HomeView {
 
   fit() {
     const compact = this.world.viewW < 755;
+    const right = Math.min(this.rightEdge + .4, -9.2 + (compact ? 23 : 32));
     const corners = [];
-    for (const x of [-9.2, 9.2]) for (const z of [-6.1, 6.1]) for (const y of [0, 1.7]) {
+    for (const x of [-9.2, right]) for (const z of [-6.1, 6.1]) for (const y of [0, 1.7]) {
       corners.push(new THREE.Vector3(x, y, z));
     }
     this.world.fit(corners, { left: compact ? 12 : 176, right: 18, top: compact ? 125 : 72,
       bottom: compact ? 162 : 104, yaw: 0.28, pitch: 0.9, pad: 1.02 });
+    this.cameraOrigin = this.world.camTarget.x;
+    this.cameraFollowStart = (right - 9.2) / 2;
+    this.cameraTravel = Math.max(0, this.rightEdge + .4 - right);
+    this.followPlayer(1);
+  }
+
+  followPlayer(amount) {
+    if (!this.cameraTravel) return;
+    const camera = this.world.camTarget;
+    const offset = Math.max(0, Math.min(this.cameraTravel, this.position.x - this.cameraFollowStart));
+    const next = camera.x + (this.cameraOrigin + offset - camera.x) * amount;
+    if (Math.abs(next - camera.x) > .001) {
+      camera.x = next;
+      this.world.updateCamera();
+    }
   }
 
   canStand(x, z) {
-    if (Math.abs(x) > HALF_WIDTH - RADIUS || Math.abs(z) > HALF_DEPTH - RADIUS) return false;
+    const onFloor = (px, pz) => this.footprint.some(room => px >= room.left && px <= room.right && pz >= room.top && pz <= room.bottom);
+    if (!onFloor(x - RADIUS, z) || !onFloor(x + RADIUS, z) || !onFloor(x, z - RADIUS) || !onFloor(x, z + RADIUS)) return false;
     return !this.obstacles.some(o => Math.abs(x - o.x) < o.w / 2 + RADIUS && Math.abs(z - o.z) < o.d / 2 + RADIUS);
   }
 
@@ -269,6 +311,7 @@ export class HomeView {
     player.position.x = position.x;
     player.position.z = position.z;
     this.shadow.position.set(position.x, 0.078, position.z);
+    this.followPlayer(Math.min(1, dt * 7));
     const selected = this.nearest();
     if (selected !== this.selected) {
       for (const [id, marker] of this.stationLabels) {

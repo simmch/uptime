@@ -1,5 +1,6 @@
 node_modules
 dist
+*.zip
 scripts/.parquet
 scripts/.sprite_cache
 scripts/contact_sheet.png

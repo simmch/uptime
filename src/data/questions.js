@@ -4,6 +4,8 @@ export const FRIENDS = [
   { id: 'nico', name: 'Nico Park', sprite: 'user', role: 'Networking and app design', unlock: 'Finish the bakery contract or reach level 2', level: 2, domains: ['net', 'compute', 'data'] },
   { id: 'samira', name: 'Samira Reed', sprite: 'oldman', role: 'Reliability and deployments', unlock: 'Reach level 4 or start chapter 2', level: 4, chapter: 2, domains: ['ha', 'ops', 'cost'] },
   { id: 'imani', name: 'Imani Brooks', sprite: 'suit', role: 'Security and migrations', unlock: 'Reach level 7 or start chapter 3', level: 7, chapter: 3, domains: ['sec', 'mig', 'data'] },
+  { id: 'camden', name: 'Camden Vale', sprite: 'boss', role: 'Client pitches and cloud costs', unlock: 'Reach level 2', level: 2, domains: ['cost', 'compute'] },
+  { id: 'sloane', name: 'Sloane Cross', sprite: 'user', role: 'Consulting and service design', unlock: 'Reach level 5', level: 5, domains: ['ops', 'data'] },
 ];
 
 export function isFriendAvailable(friend, state) {

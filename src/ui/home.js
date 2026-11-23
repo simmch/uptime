@@ -92,8 +92,21 @@ function interact(station) {
     keys: driveToMarket,
     toilet: () => { care('toilet'); toast('Restroom need satisfied.', 'good'); },
     shower: () => { care('shower'); toast('Hygiene restored.', 'good'); },
+    'wing-reading': () => relax(),
+    'wing-terrace': () => relax(),
+    'wing-nursery': () => App.panels.legacy('family'),
+    'wing-dining': () => App.panels.legacy('family'),
+    'wing-play': () => App.panels.legacy('family'),
+    'wing-guest': () => App.panels.legacy('friends'),
+    'wing-server': () => App.panels.legacy('company'),
+    'wing-boardroom': () => App.panels.legacy('company'),
   };
   actions[station.id]();
+}
+
+function relax() {
+  if (care('relax')) toast('Took a break. Morale restored.', 'good');
+  else toast('You’ve already taken this break today.');
 }
 
 function homeMeters() {

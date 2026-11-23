@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Amplify Hosting for the UPTIME static game. The bucket stays private; Amplify serves it over HTTPS.
+
+Resources:
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: uptime
+      Platform: WEB
+      Description: UPTIME, a pixel-art cloud architecture simulator
+      CustomRules:
+        - Source: '/<*>'
+          Target: '/index.html'
+          Status: '404-200'
+
+  AmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: main
+      Stage: DEVELOPMENT
+      EnableAutoBuild: false
+      Framework: Web
+
+Outputs:
+  AppId:
+    Value: !GetAtt AmplifyApp.AppId
+  DefaultDomain:
+    Value: !GetAtt AmplifyApp.DefaultDomain
+  Url:
+    Value: !Sub 'https://main.${AmplifyApp.DefaultDomain}'

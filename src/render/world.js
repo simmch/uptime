@@ -86,26 +86,63 @@ export class World {
     this.camTarget.addScaledVector(r, cx - wantX).addScaledVector(groundUp, cy - wantY);
     this.updateCamera();
   }
+  // On compact touch layouts the side panels are drawers, so the whole screen is free.
+  insets(desktop) {
+    const html = document.documentElement;
+    if (!html.classList.contains('compact')) return desktop;
+    const phone = html.classList.contains('phone');
+    const top = parseFloat(html.style.getPropertyValue('--m-top')) || (phone ? 100 : 118);
+    return { ...desktop, left: 10, right: 10, top, bottom: 64 };
+  }
   focus(box, pad = 1.15) {
     const pts = [];
     for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) pts.push(new THREE.Vector3(x, 0, z));
-    this.fit(pts, { pad, left: 80, right: 500 });
+    this.fit(pts, this.insets({ pad, left: 80, right: 500 }));
   }
 
   bindInput() {
     const el = this.renderer.domElement;
     let drag = null;
     el.addEventListener('contextmenu', e => e.preventDefault());
-    el.addEventListener('pointerdown', e => { if (!this.homeTick) drag = { x: e.clientX, y: e.clientY, moved: false, btn: e.button }; });
+    // Touch: one finger pans, two fingers pinch-zoom / pan / twist-rotate.
+    const touches = new Map(); let pinch = null;
+    const pinchState = () => {
+      const [a, b] = [...touches.values()];
+      return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, ang: Math.atan2(b.y - a.y, b.x - a.x), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+    };
+    el.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'touch') {
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size === 2 && !this.homeTick) { pinch = pinchState(); if (drag) drag.moved = true; }
+      }
+      if (!this.homeTick && touches.size < 2) drag = { x: e.clientX, y: e.clientY, moved: false, btn: e.button, touch: e.pointerType === 'touch' };
+    });
+    const endTouch = e => {
+      touches.delete(e.pointerId); if (touches.size < 2) pinch = null;
+      if (touches.size === 1 && drag) { const t = [...touches.values()][0]; drag.x = t.x; drag.y = t.y; }
+    };
+    window.addEventListener('pointercancel', e => { endTouch(e); drag = null; });
     window.addEventListener('pointerup', e => {
+      endTouch(e);
       if (drag && !drag.moved && drag.btn === 0 && e.target === el) { const hit = this.pick(e); this.emit('pick', hit); }
-      drag = null;
+      if (!touches.size) drag = null;
     });
     el.addEventListener('pointermove', e => {
       if (this.homeTick) return;
+      if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch && touches.size >= 2) {
+        const now = pinchState();
+        this.zoom = Math.min(3, Math.max(0.15, this.zoom * (now.d / pinch.d)));
+        let da = now.ang - pinch.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+        this.yaw -= da;
+        const k = 0.028 / this.zoom, dx = now.mx - pinch.mx, dy = now.my - pinch.my;
+        const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)); const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+        this.camTarget.addScaledVector(right, -dx * k).addScaledVector(fwd, -dy * k * 1.4);
+        pinch = now; this.updateCamera(); return;
+      }
       if (drag) {
         const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-        if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+        if (Math.abs(dx) + Math.abs(dy) > (drag.touch ? 10 : 4)) drag.moved = true;
         if (drag.moved) {
           if (drag.btn === 2 || e.shiftKey) { this.yaw -= dx * 0.006; this.pitch = Math.min(1.2, Math.max(0.3, this.pitch + dy * 0.004)); }
           else { const k = 0.028 / this.zoom; const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)); const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); this.camTarget.addScaledVector(right, -dx * k).addScaledVector(fwd, -dy * k * 1.4); }
@@ -289,7 +326,7 @@ export class World {
     if (!keepCamera) {
       const pts = [L.hacker, ...Object.values(L.users), ...Object.values(L.nodes)];
       for (const o of Object.values(L.regions)) for (const [dx, dz] of [[-5.6, -5], [5.6, -5], [-5.6, 5], [5.6, 5]]) pts.push(o.clone().add(new THREE.Vector3(dx, 0, dz)));
-      this.fit(pts, { left: 270, right: 410, top: 130, bottom: 30 });
+      this.fit(pts, this.insets({ left: 270, right: 410, top: 130, bottom: 30 }));
     }
   }
 

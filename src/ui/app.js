@@ -43,7 +43,7 @@ export function renderHUD() {
         h('div', { class: 'xpbar' }, h('div', { style: { width: pctXp + '%' } }), h('span', {}, `LV ${S.level}  ${num(Math.max(0, S.xp - lvlCur))}/${num(lvlNext - lvlCur)} XP`)))),
     h('div', { class: 'hud-mid' },
       h('div', { class: 'stat money ' + (S.money < 0 ? 'neg' : ''), title: credit ? `Credit line: $${credit.toLocaleString()}` : 'No credit line — going negative at rent time means trouble' }, h('span', { html: icon('coins', 22) }), money(S.money)),
-      h('div', { class: 'stat', title: `Rent $${home().rent}/week (${home().name})` }, h('span', { html: icon('calendar', 22) }), `Day ${S.day}`, h('small', {}, ` rent in ${daysToRent}d`)),
+      h('div', { class: 'stat', title: `${S.home === 'couch' ? 'Rent' : 'Home upkeep'} $${home().rent}/week (${home().name})` }, h('span', { html: icon('calendar', 22) }), `Day ${S.day}`, h('small', {}, ` ${S.home === 'couch' ? 'rent' : 'upkeep'} in ${daysToRent}d`)),
       h('div', { class: 'stat', title: S.villain ? 'Notoriety' : 'Reputation raises pay' }, h('span', { html: icon(S.villain ? 'megaphone' : 'star', 22) }), S.villain ? `${S.notoriety || 0}` : `${S.rep}`),
       h('div', { class: 'stat ' + (S.sp ? 'glow' : ''), title: 'Skill points' }, h('span', { html: icon('book', 22) }), `${S.sp} SP`)),
     h('div', { class: 'hud-right' }, h('div', { class: 'chapter' }, `CH ${ch.n} · ${ch.title.toUpperCase()}`), h('small', {}, ch.subtitle)),
@@ -52,7 +52,8 @@ export function renderHUD() {
 
 const NAV = [
   ['office', 'house', 'Home'], ['skills', 'book', 'Skills'], ['codex', 'scroll', 'Codex'], ['certs', 'medal', 'Certifications'],
-  ['practice', 'terminal', 'Practice Labs'], ['shop', 'cart', 'Shop & Housing'], ['log', 'notebook', 'Story & History'], ['settings', 'wrench', 'Save & Settings'],
+  ['practice', 'terminal', 'Practice Labs'], ['shop', 'cart', 'Shop & Housing'], ['legacy', 'heart', 'Life & legacy'],
+  ['log', 'notebook', 'Story & History'], ['settings', 'wrench', 'Save & Settings'],
 ];
 export function renderNav() {
   const el = $('#nav'); el.innerHTML = '';
@@ -146,6 +147,7 @@ export function openDesk() {
   const toolbar = h('div', { class: 'desk-toolbar row gap wrap' },
     h('button', { class: 'btn help-button', onclick: () => App.panels.phone({ job: storyJob }) }, 'Ask a friend'),
     h('button', { class: 'btn ghost', onclick: () => App.panels.feed() }, 'Social feed'),
+    h('button', { class: 'btn ghost', onclick: () => App.panels.legacy('company') }, 'Company'),
     bonus > 0 ? h('span', { class: 'good' }, `Online visibility · +${+(bonus * 100).toFixed(1)}% to contract pay`) : null);
   const desk = modal(h('div', { class: 'desk' }, toolbar,
     urgent ? h('p', { class: 'hint' }, `Take a break before starting work. ${urgent.action}.`) : null, story, board),
@@ -155,7 +157,8 @@ export function openDesk() {
 
 export function handleRent(ev = []) {
   for (const e of ev) {
-    if (e.type === 'rent') toast(`${icon('house', 18)} Rent paid: <b>${money(e.amount)}</b>`, 'warn');
+    if (e.type === 'lifeNotice') showLifeNotice(e);
+    if (e.type === 'rent') toast(`${icon('house', 18)} ${e.owned ? 'Home upkeep' : 'Rent paid'}: <b>${money(e.amount)}</b>`, 'warn');
     if (e.type === 'interest') toast(`Credit interest: ${money(e.amount)}`, 'warn');
     if (e.type === 'passive') toast(`Passive income: <b>${money(e.amount)}</b>`, 'good');
     if (e.type === 'broke') {
@@ -166,6 +169,8 @@ export function handleRent(ev = []) {
   }
   renderHUD();
 }
+function showLifeNotice(event) { toast(esc(event.text), event.kind, 4500); }
+on('legacy', showLifeNotice);
 on('rentEvents', ev => handleRent(ev));
 
 function reqChips(job) {

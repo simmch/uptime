@@ -11,6 +11,7 @@ import { drawQuestions } from '../data/quiz.js';
 import { mulberry32 } from '../sim/rng.js';
 import * as G from '../game.js';
 import { sfx, toggleSound } from '../audio/sfx.js';
+import { HOUSING_ROOMS, ROOM_NAMES } from '../data/legacy.js';
 
 // ═════════════ SKILLS ═════════════
 App.panels.skills = function (focusId) {
@@ -135,11 +136,22 @@ App.panels.shop = function () {
   const body = h('div', { class: 'shop' });
   const render = () => {
     body.innerHTML = '';
-    body.append(h('div', { class: 'panel-title' }, 'HOUSING (rent due weekly)'));
+    body.append(h('div', { class: 'panel-title' }, 'HOUSING'));
     for (const hm of HOMES) {
       const cur = S.home === hm.id;
-      body.append(h('div', { class: 'shopitem ' + (cur ? 'owned' : '') }, h('span', { html: icon('house', 32) }), h('div', { class: 'grow' }, h('b', {}, hm.name), h('div', { class: 'small muted' }, `${money(hm.rent)}/week · ${hm.perk}`)),
-        cur ? h('span', { class: 'good' }, 'Current') : h('button', { class: 'btn small', disabled: !canSpend(hm.cost || 0), onclick: () => { if (G.moveHome(hm.id)) { toast(`Moved: ${hm.name}`, 'good'); renderHUD(); App.world.buildOffice(S); render(); } } }, hm.cost ? `Move (${money(hm.cost)} deposit)` : 'Move')));
+      const rooms = HOUSING_ROOMS[hm.id] || [];
+      const price = G.homePrice(hm);
+      const costLabel = hm.id === 'couch' ? 'rent' : 'upkeep';
+      body.append(h('div', { class: 'shopitem ' + (cur ? 'owned' : '') }, h('span', { html: icon('house', 32) }),
+        h('div', { class: 'grow' }, h('b', {}, hm.name),
+          h('div', { class: 'small muted' }, `${money(hm.rent)}/week ${costLabel} · ${hm.perk}`),
+          rooms.length && h('div', { class: 'small' }, rooms.map(room => ROOM_NAMES[room]).join(' · '))),
+        cur ? h('span', { class: 'good' }, 'Current home') : h('button', { class: 'btn small', disabled: !G.canMoveHome(hm), onclick: () => {
+          if (!G.moveHome(hm.id)) return;
+          toast(`Moved: ${hm.name}`, 'good');
+          shop.close();
+          show('office');
+        } }, price ? `Buy & move · ${money(price)}` : hm.cost ? 'Move to owned home' : 'Move')));
     }
     body.append(h('div', { class: 'panel-title' }, 'GEAR & BUSINESS'));
     for (const g of GEAR) {
@@ -150,7 +162,7 @@ App.panels.shop = function () {
     }
   };
   render();
-  modal(body, { title: 'SHOP & HOUSING', wide: true });
+  const shop = modal(body, { title: 'SHOP & HOUSING', wide: true });
 };
 
 // ═════════════ STORY LOG ═════════════

@@ -11,6 +11,13 @@ const PLAYERS = {
 
 const SCREEN_TRACK = { title: 'triumph', drive: 'rising', office: 'lounge' };
 
+// iOS Safari (and some mobile browsers) ignore writes to audio.volume, so a
+// fade-out never reaches 0 and the old track is never paused. Detect that and
+// switch tracks by pausing instead of fading.
+const CAN_FADE = (() => {
+  try { const probe = new Audio(); probe.volume = 0.5; return Math.abs(probe.volume - 0.5) < 0.01; } catch { return false; }
+})();
+
 let want = null;
 let screen = null;
 let atComputer = false;
@@ -25,10 +32,25 @@ function track(file) {
   return audio;
 }
 
-function ensurePlaying(audio) {
-  if (!audio || !audio.paused) return;
-  audio.play().then(() => fade()).catch(() => {});
+function silenceOthers() {
+  for (const [id, audio] of Object.entries(PLAYERS)) if (id !== want && !audio.paused) audio.pause();
 }
+
+function ensurePlaying(audio) {
+  if (!audio || !audio.paused || document.hidden) return;
+  audio.play().then(() => {
+    // The scene may have changed while play() was pending (slow on phones).
+    if (PLAYERS[want] !== audio) { audio.pause(); return; }
+    if (!CAN_FADE) silenceOthers();
+    fade();
+  }).catch(() => {});
+}
+
+// Stop music when the app is backgrounded or the phone is locked.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { for (const audio of Object.values(PLAYERS)) audio.pause(); }
+  else if (want) ensurePlaying(PLAYERS[want]);
+});
 
 // A click or key unlocks audio after the screen handler has chosen the track.
 function onGesture() {
@@ -44,6 +66,7 @@ function fade() {
 }
 
 function step() {
+  if (!CAN_FADE) { timer = 0; silenceOthers(); return; }
   const now = performance.now();
   const elapsed = last ? Math.min(1, (now - last) / 1000) : 0;
   last = now;
@@ -76,6 +99,7 @@ function play(next) {
     return;
   }
   want = next;
+  if (!CAN_FADE) silenceOthers();
   if (want) ensurePlaying(PLAYERS[want]);
   fade();
 }

@@ -35,6 +35,11 @@ export function care(action) {
   } else if (action === 'shower') {
     spendTime(23);
     life.needs.hygiene = 100;
+  } else if (action === 'relax') {
+    if (life.lastRelax === S.day) return false;
+    spendTime(35);
+    life.lastRelax = S.day;
+    changeNeed(life, 'morale', 22);
   } else if (action === 'sleep') {
     const morning = 7 * 60;
     // Sleep advances to the following day and restores energy.

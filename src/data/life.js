@@ -1,3 +1,5 @@
+import { freshLegacy, restoreLegacy } from './legacy.js';
+
 export const HOME_SPAWN = { x: 0.2, z: 3.72 };
 
 export const CARE = {
@@ -54,8 +56,9 @@ export function freshLife() {
   return {
     minute: 17 * 60 + 30, position: { ...HOME_SPAWN }, meals: 5,
     needs: Object.fromEntries(Object.entries(CARE).map(([key, need]) => [key, need.start])),
-    followers: 0, lastPost: 0, feed: [], lastPantry: 0, newsDay: 0, lastTv: 0, lastParty: 0, guests: [],
+    followers: 0, lastPost: 0, feed: [], lastPantry: 0, newsDay: 0, lastTv: 0, lastParty: 0, lastRelax: 0, guests: [],
     decor: { rug: 'woven', walls: 'original', plants: 'single' }, ownedDecor: [],
+    legacy: freshLegacy(),
   };
 }
 
@@ -63,7 +66,7 @@ export function restoreLife(data) {
   const defaults = freshLife();
   if (!data) return defaults;
   return { ...defaults, ...data, position: { ...defaults.position, ...data.position },
-    needs: { ...defaults.needs, ...data.needs }, decor: { ...defaults.decor, ...data.decor } };
+    needs: { ...defaults.needs, ...data.needs }, decor: { ...defaults.decor, ...data.decor }, legacy: restoreLegacy(data.legacy) };
 }
 
 export function changeNeed(life, key, amount) {

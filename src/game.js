@@ -5,7 +5,8 @@ import { CHAPTERS, STORY_JOBS } from './data/story.js';
 import { generateBoard, storyJob } from './data/jobs.js';
 import { COMPLIANCE } from './sim/review.js';
 import { analyze } from './sim/analyze.js';
-import { moraleBonus, popularityBonus } from './data/life.js';
+import { HOME_SPAWN, moraleBonus, popularityBonus } from './data/life.js';
+import { legacyProject } from './data/legacy.js';
 
 export function chapter() { return CHAPTERS.find(c => c.n === S.chapter) || CHAPTERS[0]; }
 export function step() { return chapter().steps[S.step] || null; }
@@ -156,6 +157,7 @@ function finishJob(job, grade) {
   S.active = null;
   if (job.story && grade !== 'F') { S.flags['done_' + job.id] = true; S.step++; S.stepSeen = S.step - 1; }
   refreshBoard(true);
+  legacyProject(S, job, grade, ev);
   save();
   emit('rentEvents', ev);
 }
@@ -207,11 +209,29 @@ export function bankruptcyBailout() {
   const key = 'bailout_' + S.chapter;
   if (!S.flags[key]) { S.flags[key] = true; const amt = Math.max(1500, -S.money + 1000); earn(amt, 'Loan from Mara'); return { kind: 'loan', amt }; }
   S.home = 'couch'; S.money = 200; S.rep = Math.max(0, S.rep - 10);
+  Object.assign(S.life.position, HOME_SPAWN);
   return { kind: 'evicted' };
 }
+export function homePrice(property) {
+  return S.life.legacy.properties.includes(property.id) ? 0 : (property.cost || 0);
+}
+export function canMoveHome(property) {
+  const price = homePrice(property);
+  return price ? S.money >= price : S.money >= -creditLimit(property);
+}
 export function moveHome(id) {
-  const h = HOMES.find(x => x.id === id); if (!h) return false;
-  if (S.money - (h.cost || 0) < -creditLimit()) return false;
-  spend(h.cost || 0, `Move: ${h.name}`); S.home = id; save(); return true;
+  const property = HOMES.find(option => option.id === id);
+  if (!property || id === S.home || !canMoveHome(property)) return false;
+  const price = homePrice(property);
+  if (price) {
+    spend(price, `Bought ${property.name}`);
+    S.life.legacy.properties.push(id);
+  }
+  S.home = id;
+  Object.assign(S.life.position, HOME_SPAWN);
+  refreshBoard(true);
+  save();
+  emit('state');
+  return true;
 }
 export { STORY_JOBS };

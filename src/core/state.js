@@ -3,6 +3,7 @@ import { STARTER_SKILLS, SKILL } from '../data/skills.js';
 import { DOMAIN_IDS } from '../data/domains.js';
 import { emit } from './events.js';
 import { freshLife, popularityBonus, restoreLife, useTime } from '../data/life.js';
+import { legacyDay } from '../data/legacy.js';
 
 const SAVE_KEY = 'uptime_save_v1';
 
@@ -63,7 +64,13 @@ export function newState(name = 'Chris') {
 }
 
 export let S = null;
-export function setState(s) { s.life = restoreLife(s.life); S = s; emit('state'); }
+export function setState(s) {
+  s.life = restoreLife(s.life);
+  const properties = s.life.legacy.properties;
+  if (s.home !== 'couch' && HOMES.some(option => option.id === s.home) && !properties.includes(s.home)) properties.push(s.home);
+  S = s;
+  emit('state');
+}
 
 export function save() {
   if (!S) return;
@@ -79,8 +86,8 @@ export function importSave(str) { const s = JSON.parse(decodeURIComponent(escape
 
 // ───────────── economy ─────────────
 export function home() { return HOMES.find(h => h.id === S.home) || HOMES[0]; }
-export function creditLimit() {
-  let c = home().credit || 0;
+export function creditLimit(property = home()) {
+  let c = property.credit || 0;
   for (const g of S.gear) c += GEAR.find(x => x.id === g)?.credit || 0;
   return c;
 }
@@ -116,12 +123,13 @@ export function advanceDays(n, { wearNeeds = true } = {}) {
     if (S.day % 7 === 1) {
       const rent = home().rent;
       spend(rent, 'Rent');
-      events.push({ type: 'rent', amount: rent });
+      events.push({ type: 'rent', amount: rent, owned: S.home !== 'couch' });
       if (S.money < 0 && S.gear.includes('card')) { const interest = Math.round(-S.money * 0.02); spend(interest, 'Credit card interest'); events.push({ type: 'interest', amount: interest }); }
       if (S.gear.includes('agency') && !S.villain) { earn(1500, 'Junior engineer gigs'); events.push({ type: 'passive', amount: 1500 }); }
       if (S.gear.includes('botfarm') && S.villain) { earn(6000, 'Supporter donations'); events.push({ type: 'passive', amount: 6000 }); }
       if (S.money < -creditLimit()) events.push({ type: 'broke' });
     }
+    legacyDay(S, events);
   }
   S.board = S.board.filter(j => !j.expires || j.expires >= S.day);
   emit('state');

@@ -1,4 +1,6 @@
 import './style.css';
+import './ui/mobile.css';
+import './ui/mobile.js';
 import { loadAtlas } from './render/atlas.js';
 import { World } from './render/world.js';
 import { App, show, renderHUD, renderNav } from './ui/app.js';
@@ -9,6 +11,7 @@ import './ui/labs.js';
 import './ui/title.js';
 import './ui/drive.js';
 import './ui/home.js';
+import './ui/legacy.js';
 import { S, save } from './core/state.js';
 import { mkNode, storyJob } from './data/jobs.js';
 import * as G from './game.js';

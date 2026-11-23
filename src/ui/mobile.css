@@ -1,0 +1,132 @@
+/* Phones & tablets only. Every rule is scoped to html.touch / .compact / .phone
+   (set by ui/mobile.js on coarse-pointer devices), so desktop is unaffected. */
+
+html.touch { -webkit-text-size-adjust: 100%; }
+html.touch body { overscroll-behavior: none; }
+html.touch .world-canvas { touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+html.touch button, html.touch .btn, html.touch .tab, html.touch .pitem { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* No hover on touch: keep the nav buttons collapsed instead of sticking open. */
+html.touch .navbtn:hover { width: 52px; border-color: var(--line); }
+html.touch .navbtn:hover .navlabel { opacity: 0; }
+html.touch .navbtn.on { border-color: var(--accent); }
+
+/* ── compact layout (phones + small tablets) ── */
+html.compact { --m-top: 118px; --m-bottom: 58px; }
+html.compact.phone { --m-top: 100px; }
+
+html.compact .palette,
+html.compact .inspector,
+html.compact .run-left,
+html.compact .run-right {
+  top: var(--m-top);
+  bottom: var(--m-bottom);
+  width: min(86vw, 380px);
+  max-height: none;
+  z-index: 6;
+  overflow-y: auto;
+  transition: transform .2s ease-out, visibility .2s;
+  box-shadow: 6px 0 0 #000a;
+}
+html.compact .palette, html.compact .run-left { left: 6px; transform: translateX(calc(-100% - 12px)); visibility: hidden; }
+html.compact .inspector, html.compact .run-right { right: 6px; transform: translateX(calc(100% + 12px)); visibility: hidden; }
+html.compact .inspector { overflow: hidden; }
+html.compact .run-left { display: flex; }
+html.compact .run-right { height: auto; }
+html.compact[data-drawer="palette"] .palette,
+html.compact[data-drawer="inspector"] .inspector,
+html.compact[data-drawer="log"] .run-left,
+html.compact[data-drawer="metrics"] .run-right { transform: none; visibility: visible; }
+
+.m-dock { display: none; }
+html.compact .m-dock {
+  position: absolute;
+  left: 50%;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 7;
+  max-width: calc(100vw - 12px);
+}
+html.compact .m-dock .btn { padding: 8px 12px; font-size: 18px; white-space: nowrap; background: #1a2440; }
+html.compact .m-dock .btn.on { background: #3a62a0; border-color: var(--accent); }
+
+html.compact .build-top { top: 60px; left: 6px; right: 6px; flex-wrap: wrap; gap: 6px; padding: 4px 6px; }
+html.compact .bt-title { max-width: 40vw; }
+html.compact .run-top { top: 60px; left: 6px; right: 6px; transform: none; width: auto; flex-wrap: wrap; gap: 6px; padding: 4px 8px; }
+html.compact .run-bottom { bottom: calc(var(--m-bottom) + 4px); }
+html.compact .actions { max-width: calc(100vw - 16px); gap: 6px; }
+html.compact #toasts { top: 60px; width: min(92vw, 520px); align-items: center; }
+
+/* ── phone ── */
+html.phone #hud { height: 50px; padding: 4px 8px; gap: 6px; }
+html.phone .hud-left { min-width: 0; gap: 4px; }
+html.phone .hud-left > span:first-child { display: none; }
+html.phone .hud-name { font-size: 9px; }
+html.phone .hud-title, html.phone .hud-right, html.phone .hud-mid small { display: none; }
+html.phone .hud-mid { gap: 8px; font-size: 17px; }
+html.phone .hud-mid .stat:nth-child(n + 4) { display: none; }
+html.phone .xpbar { width: min(30vw, 150px); }
+
+html.phone #nav {
+  left: 0; right: 0; top: auto; bottom: 0;
+  flex-direction: row;
+  overflow-x: auto;
+  background: #181524;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+  justify-content: center;
+}
+html.phone .navbtn, html.phone .navbtn:hover { width: 44px; flex: none; padding: 2px 4px; }
+
+html.compact.phone .build-top, html.compact.phone .run-top { top: 54px; }
+html.compact.phone #toasts { top: 54px; }
+html.phone .build-top .btn, html.phone .run-top .btn { padding: 4px 8px; }
+html.phone .clock { font-size: 11px; }
+html.phone .rchip { font-size: 15px; }
+
+/* modals become full screen sheets */
+html.phone .modal-back { place-items: stretch; }
+html.phone .modal, html.phone .modal.wide {
+  width: 100vw;
+  max-height: 100dvh;
+  height: 100dvh;
+  border-width: 0;
+  box-shadow: none;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+html.phone .modal-title { padding: 10px 12px; }
+html.phone .modal-title .x { font-size: 26px; padding: 0 6px; }
+html.phone .modal-body { padding: 10px; }
+html.compact:not(.phone) .modal.wide { width: 96vw; }
+
+/* stack wide grids */
+html.phone .nl-grid { grid-template-columns: 1fr; }
+html.phone .practice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html.phone .vectors { grid-template-columns: 1fr; }
+html.phone .codex, html.phone .term-wrap { flex-direction: column; height: auto; }
+html.phone .codex > *, html.phone .term-wrap > * { width: auto !important; max-width: none; min-width: 0; }
+html.phone .decor-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html.phone .phone-grid { grid-template-columns: 1fr; }
+html.compact:not(.phone) .practice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* dialogue */
+html.phone #dialogue { width: calc(100vw - 12px); bottom: calc(6px + env(safe-area-inset-bottom)); }
+html.phone .dlg { gap: 8px; padding: 8px; min-height: 0; }
+html.phone .dlg-portrait { transform: scale(.7); transform-origin: top left; margin-right: -14px; }
+html.phone .dlg-text { font-size: 19px; min-height: 0; }
+html.phone .dlg-name { font-size: 9px; }
+
+/* landscape phones: little height, keep the HUD slim */
+html.phone.compact .palette, html.phone.compact .inspector,
+html.phone.compact .run-left, html.phone.compact .run-right { width: min(86vw, 340px); }
+
+/* codex / terminal / labs on phones */
+html.phone .cx-list { width: auto; max-height: 32dvh; border-bottom: 2px solid var(--line); }
+html.phone .term-modal .modal-body { flex-direction: column; }
+html.phone .term { min-height: 52dvh; }
+html.phone .term-objs { width: auto; max-height: 26dvh; }
+html.phone .finding > div:first-child { min-width: 0; }
+/* iOS zooms the page when focusing inputs under 16px */
+html.touch input, html.touch textarea, html.touch select, html.touch .term-in { font-size: max(16px, 1em); }

@@ -6,8 +6,11 @@ import { DECOR, GROCERIES, localNews, popularityBonus } from '../data/life.js';
 import { FRIENDS, QUESTIONS, findQuestions, friendCanAnswer, isFriendAvailable } from '../data/questions.js';
 import { buyGroceries, changeDecor, dealPrice, groceryPrice, publishPost, readNews, throwParty } from '../core/life.js';
 import { sfx } from '../audio/sfx.js';
+import { friendshipFor } from '../data/legacy.js';
 
-const availableFriends = () => FRIENDS.filter(friend => isFriendAvailable(friend, S));
+const isRival = friend => friendshipFor(S.life, friend.id).status === 'rival';
+const canCall = friend => isFriendAvailable(friend, S) && !isRival(friend);
+const availableFriends = () => FRIENDS.filter(canCall);
 
 function phoneButton(text, onclick, style = 'ghost') {
   return h('button', { class: `btn ${style}`, type: 'button', onclick }, text);
@@ -46,9 +49,9 @@ function callContext({ job, component }) {
   return details;
 }
 
-export function openPhone({ job = S.active?.job, component } = {}) {
+export function openPhone({ job = S.active?.job, component, friendId } = {}) {
   sfx('phone_open');
-  let currentFriend = FRIENDS[0];
+  let currentFriend = availableFriends().find(friend => friend.id === friendId) || FRIENDS[0];
   let query = '';
   let currentAnswer = null;
   const suggestions = h('div', { class: 'phone-questions' });
@@ -61,7 +64,7 @@ export function openPhone({ job = S.active?.job, component } = {}) {
   const context = callContext({ job, component });
   const shortcuts = App.screen === 'office' && h('nav', { class: 'row gap wrap phone-shortcuts', 'aria-label': 'Phone apps' },
     phoneButton('Feed & news', openFeed), phoneButton('Invite friends', () => openParty(() => panel.close())), phoneButton('Grocery delivery', () => openGroceries('delivery')),
-    phoneButton('Decorate', openDecor));
+    phoneButton('Decorate', openDecor), phoneButton('Life & legacy', () => App.panels.legacy('dating')));
   const panel = modal(h('div', { class: 'phone' },
     shortcuts,
     h('div', { class: 'phone-grid' }, contacts,
@@ -87,7 +90,7 @@ export function openPhone({ job = S.active?.job, component } = {}) {
 
   function renderContacts() {
     contacts.replaceChildren(...FRIENDS.map(friend => {
-      const available = isFriendAvailable(friend, S);
+      const available = canCall(friend);
       return h('button', {
         type: 'button',
         class: 'phone-contact' + (currentFriend === friend ? ' selected' : ''),
@@ -101,7 +104,7 @@ export function openPhone({ job = S.active?.job, component } = {}) {
         },
       },
       h('span', { html: icon(friend.sprite, 35) }),
-      h('span', {}, h('strong', {}, friend.name), h('small', {}, available ? friend.role : friend.unlock)));
+      h('span', {}, h('strong', {}, friend.name), h('small', {}, available ? friend.role : isRival(friend) ? 'Rival' : friend.unlock)));
     }));
   }
 
