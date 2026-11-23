@@ -31,10 +31,10 @@ let modalRoot;
 export function initModals(root) { modalRoot = root; }
 export function modal(content, { title = '', wide = false, closable = true, onClose = null, cls = '' } = {}) {
   const box = h('div', { class: `modal ${wide ? 'wide' : ''} ${cls}` },
-    title ? h('div', { class: 'modal-title' }, h('span', {}, title), closable ? h('button', { class: 'x', 'data-sfx': 'none', onclick: () => close() }, '✕') : null) : null,
+    title ? h('div', { class: 'modal-title' }, h('span', {}, title), closable ? h('button', { class: 'x', 'aria-label': 'Close', 'data-sfx': 'none', onclick: () => close() }, '✕') : null) : null,
     h('div', { class: 'modal-body' }, content));
   const back = h('div', { class: 'modal-back' }, box);
-  if (closable) back.addEventListener('mousedown', e => { if (e.target === back) close(); });
+  if (closable) back.addEventListener('pointerdown', e => { if (e.target === back) close(); });
   modalRoot.append(back);
   sfx('ui_open');
   function close() { if (back.isConnected) sfx('ui_close'); back.remove(); onClose?.(); }

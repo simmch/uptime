@@ -51,9 +51,11 @@ export class World {
 
   resize() {
     const w = this.container.clientWidth || window.innerWidth, h = this.container.clientHeight || window.innerHeight;
+    const rotated = this.viewW && Math.abs(w - this.viewW) >= 70;
     this.renderer.setSize(Math.ceil(w / PIXEL), Math.ceil(h / PIXEL), false);
     this.aspect = w / h; this.viewW = w; this.viewH = h;
     if (this.mode === 'office' && this.homeView) this.homeView.fit();
+    else if (this.mode === 'arch' && rotated && document.documentElement.classList.contains('touch')) this.fitArchitecture();
     else this.updateCamera();
   }
   updateCamera() {
@@ -100,57 +102,111 @@ export class World {
     this.fit(pts, this.insets({ pad, left: 80, right: 500 }));
   }
 
+  adjustView(zoomFactor = 1, rotation = 0) {
+    this.zoom = Math.min(3, Math.max(.12, this.zoom * zoomFactor));
+    this.yaw += rotation;
+    this.updateCamera();
+  }
+
+  panView(dx, dy) {
+    const step = 0.028 / this.zoom;
+    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+    this.camTarget.addScaledVector(right, -dx * step).addScaledVector(fwd, -dy * step * 1.4);
+  }
+
   bindInput() {
     const el = this.renderer.domElement;
-    let drag = null;
-    el.addEventListener('contextmenu', e => e.preventDefault());
-    // Touch: one finger pans, two fingers pinch-zoom / pan / twist-rotate.
-    const touches = new Map(); let pinch = null;
+    const touches = new Map();
+    let mouseDrag, touchTap, pinch;
+    const canMove = () => !this.homeTick && !this.drive;
+    const point = e => ({ x: e.clientX, y: e.clientY });
     const pinchState = () => {
+      if (touches.size < 2) return null;
       const [a, b] = [...touches.values()];
-      return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, ang: Math.atan2(b.y - a.y, b.x - a.x), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+      return { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+        angle: Math.atan2(b.y - a.y, b.x - a.x), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     };
+
+    el.addEventListener('contextmenu', e => e.preventDefault());
     el.addEventListener('pointerdown', e => {
+      if (!canMove()) return;
       if (e.pointerType === 'touch') {
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (touches.size === 2 && !this.homeTick) { pinch = pinchState(); if (drag) drag.moved = true; }
-      }
-      if (!this.homeTick && touches.size < 2) drag = { x: e.clientX, y: e.clientY, moved: false, btn: e.button, touch: e.pointerType === 'touch' };
+        if (this.mode !== 'arch') return;
+        touches.set(e.pointerId, point(e));
+        if (touches.size === 1) touchTap = { id: e.pointerId, ...point(e) };
+        else { touchTap = null; pinch = pinchState(); }
+        el.setPointerCapture(e.pointerId);
+      } else mouseDrag = { id: e.pointerId, ...point(e), button: e.button, moved: false };
     });
-    const endTouch = e => {
-      touches.delete(e.pointerId); if (touches.size < 2) pinch = null;
-      if (touches.size === 1 && drag) { const t = [...touches.values()][0]; drag.x = t.x; drag.y = t.y; }
+
+    const endTouch = (event, cancelled) => {
+      if (!touches.has(event.pointerId)) return;
+      if (!cancelled && canMove() && touchTap?.id === event.pointerId &&
+          Math.hypot(event.clientX - touchTap.x, event.clientY - touchTap.y) <= 10) {
+        this.emit('pick', this.pick(event));
+      }
+      touches.delete(event.pointerId);
+      touchTap = null;
+      pinch = pinchState();
     };
-    window.addEventListener('pointercancel', e => { endTouch(e); drag = null; });
     window.addEventListener('pointerup', e => {
-      endTouch(e);
-      if (drag && !drag.moved && drag.btn === 0 && e.target === el) { const hit = this.pick(e); this.emit('pick', hit); }
-      if (!touches.size) drag = null;
-    });
-    el.addEventListener('pointermove', e => {
-      if (this.homeTick) return;
-      if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pinch && touches.size >= 2) {
-        const now = pinchState();
-        this.zoom = Math.min(3, Math.max(0.15, this.zoom * (now.d / pinch.d)));
-        let da = now.ang - pinch.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
-        this.yaw -= da;
-        const k = 0.028 / this.zoom, dx = now.mx - pinch.mx, dy = now.my - pinch.my;
-        const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)); const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-        this.camTarget.addScaledVector(right, -dx * k).addScaledVector(fwd, -dy * k * 1.4);
-        pinch = now; this.updateCamera(); return;
+      if (e.pointerType === 'touch') endTouch(e, false);
+      else if (e.pointerId === mouseDrag?.id) {
+        if (canMove() && !mouseDrag.moved && mouseDrag.button === 0 && e.target === el) this.emit('pick', this.pick(e));
+        mouseDrag = null;
       }
-      if (drag) {
-        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-        if (Math.abs(dx) + Math.abs(dy) > (drag.touch ? 10 : 4)) drag.moved = true;
-        if (drag.moved) {
-          if (drag.btn === 2 || e.shiftKey) { this.yaw -= dx * 0.006; this.pitch = Math.min(1.2, Math.max(0.3, this.pitch + dy * 0.004)); }
-          else { const k = 0.028 / this.zoom; const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)); const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); this.camTarget.addScaledVector(right, -dx * k).addScaledVector(fwd, -dy * k * 1.4); }
-          drag.x = e.clientX; drag.y = e.clientY; this.updateCamera();
-        }
-      } else { const hit = this.pick(e); this.emit('hover', hit); el.style.cursor = hit ? 'pointer' : 'default'; }
     });
-    el.addEventListener('wheel', e => { e.preventDefault(); if (this.homeTick) return; this.zoom = Math.min(3, Math.max(0.15, this.zoom * (e.deltaY > 0 ? 0.9 : 1.1))); this.updateCamera(); }, { passive: false });
+    window.addEventListener('pointercancel', e => {
+      endTouch(e, true);
+      if (e.pointerId === mouseDrag?.id) mouseDrag = null;
+    });
+    el.addEventListener('lostpointercapture', e => endTouch(e, true));
+    const resetGestures = () => { touches.clear(); mouseDrag = null; touchTap = null; pinch = null; };
+    window.addEventListener('blur', resetGestures);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) resetGestures(); });
+
+    el.addEventListener('pointermove', e => {
+      if (!canMove()) return;
+      if (e.pointerType === 'touch') {
+        const previous = touches.get(e.pointerId);
+        if (!previous) return;
+        touches.set(e.pointerId, point(e));
+        if (pinch) {
+          const next = pinchState();
+          const delta = next.angle - pinch.angle;
+          this.panView(next.x - pinch.x, next.y - pinch.y);
+          this.adjustView(next.distance / pinch.distance, -Math.atan2(Math.sin(delta), Math.cos(delta)));
+          pinch = next;
+        } else {
+          if (touchTap && Math.hypot(e.clientX - touchTap.x, e.clientY - touchTap.y) <= 10) return;
+          const origin = touchTap || previous;
+          touchTap = null;
+          this.panView(e.clientX - origin.x, e.clientY - origin.y);
+          this.updateCamera();
+        }
+        return;
+      }
+      if (e.pointerId === mouseDrag?.id) {
+        const dx = e.clientX - mouseDrag.x, dy = e.clientY - mouseDrag.y;
+        if (!mouseDrag.moved && Math.abs(dx) + Math.abs(dy) <= 4) return;
+        mouseDrag.moved = true;
+        if (mouseDrag.button === 2 || e.shiftKey) {
+          this.yaw -= dx * 0.006;
+          this.pitch = Math.min(1.2, Math.max(0.3, this.pitch + dy * 0.004));
+        } else this.panView(dx, dy);
+        Object.assign(mouseDrag, point(e));
+        this.updateCamera();
+      } else {
+        const hit = this.pick(e);
+        this.emit('hover', hit);
+        el.style.cursor = hit ? 'pointer' : 'default';
+      }
+    });
+    el.addEventListener('wheel', e => {
+      e.preventDefault();
+      if (canMove()) this.adjustView(e.deltaY > 0 ? .9 : 1.1);
+    }, { passive: false });
     const driveKeys = new Set();
     window.addEventListener('keyup', e => driveKeys.delete(e.code));
     window.addEventListener('blur', () => driveKeys.clear());
@@ -174,6 +230,7 @@ export class World {
   pick(e) {
     const r = this.renderer.domElement.getBoundingClientRect();
     this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    this.camera.updateMatrixWorld();
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hits = this.raycaster.intersectObjects(this.pickables, false);
     const sprite = hits.find(h => h.object.userData.kind === 'node');
@@ -323,11 +380,17 @@ export class World {
     // static wires
     this.wires = new THREE.Group(); this.arch.add(this.wires);
     this.drawWires();
-    if (!keepCamera) {
-      const pts = [L.hacker, ...Object.values(L.users), ...Object.values(L.nodes)];
-      for (const o of Object.values(L.regions)) for (const [dx, dz] of [[-5.6, -5], [5.6, -5], [-5.6, 5], [5.6, 5]]) pts.push(o.clone().add(new THREE.Vector3(dx, 0, dz)));
-      this.fit(pts, this.insets({ left: 270, right: 410, top: 130, bottom: 30 }));
+    if (!keepCamera) this.fitArchitecture();
+  }
+
+  fitArchitecture() {
+    const L = this.L;
+    if (this.mode !== 'arch' || !L) return;
+    const pts = [L.hacker, ...Object.values(L.users), ...Object.values(L.nodes)];
+    for (const o of Object.values(L.regions)) {
+      for (const [dx, dz] of [[-5.6, -5], [5.6, -5], [-5.6, 5], [5.6, 5]]) pts.push(o.clone().add(new THREE.Vector3(dx, 0, dz)));
     }
+    this.fit(pts, this.insets({ left: 270, right: 410, top: 130, bottom: 30 }));
   }
 
   // entry points used for wires/packets

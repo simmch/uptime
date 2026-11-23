@@ -82,7 +82,8 @@ export function dialogue(lines) {
       const txt = h('div', { class: 'dlg-text' });
       box.append(h('div', { class: 'dlg-portrait', html: icon(who === 'you' ? (S.villain ? 'hacker' : 'player') : c.sprite, 72) }),
         h('div', { class: 'dlg-body' }, h('div', { class: 'dlg-name', style: { color: c.color } }, name, c.title ? h('small', {}, ' — ' + c.title) : null), txt,
-          h('div', { class: 'dlg-hint' }, `${i + 1}/${lines.length} · click / space ▸`)));
+          h('div', { class: 'dlg-hint' }, `${i + 1}/${lines.length} · `,
+            h('span', { class: 'desktop-input-hint' }, 'click / space ▸'), h('span', { class: 'touch-input-hint' }, 'tap to continue ▸'))));
       let k = 0; clearInterval(typing);
       typing = setInterval(() => { k += 2; if (k % 6 === 0) sfx('text_blip'); txt.textContent = text.slice(0, k); if (k >= text.length) { clearInterval(typing); typing = null; } }, 14);
       txt.dataset.full = text;

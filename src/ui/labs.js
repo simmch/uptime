@@ -1,6 +1,7 @@
 // Lab UIs: Network Lab, CIDR, Security Audit, IAM, Migration, Recon, Terminal.
 import { h, $, money, num, modal, toast } from './dom.js';
 import { icon } from '../render/atlas.js';
+import { hasTouch } from './mobile.js';
 import { App, renderHUD, runStory, show } from './app.js';
 import { S, save, gainXP } from '../core/state.js';
 import { NET_SCENARIOS, cidrQuestions, auditSet, IAM_PUZZLES, PORTFOLIOS, SEVEN_RS, TRANSFER_OPTS, VECTORS, RECON_TARGETS } from '../data/labs.js';
@@ -9,6 +10,7 @@ import { quizRunner } from './panels.js';
 import { mulberry32 } from '../sim/rng.js';
 import * as G from '../game.js';
 import { sfx, gradeSound } from '../audio/sfx.js';
+import { setAtWork } from '../audio/music.js';
 
 function finish(job, score, detail = '') {
   if (job.practice) {
@@ -37,7 +39,8 @@ App.labs = {
 };
 
 function labModal(body, job, options) {
-  const lab = modal(body, { title: job.title, ...options });
+  setAtWork(true);
+  const lab = modal(body, { ...options, title: job.title, onClose: () => { setAtWork(false); options.onClose?.(); } });
   const heading = $('.modal-title', lab.el);
   const help = h('button', { class: 'btn help-button small', type: 'button',
     onclick: () => App.panels.phone({ job }) }, 'Ask a friend');
@@ -91,7 +94,8 @@ function netlab(job) {
 // ═════════════ CIDR ═════════════
 function cidr(job) {
   const qs = cidrQuestions(job.seed || Date.now() & 0xffff, 6).map(q => ({ ...q, d: 'net', ex: q.ex }));
-  quizRunner(qs, job.title, score => finish(job, score));
+  setAtWork(true);
+  quizRunner(qs, job.title, score => { setAtWork(false); finish(job, score); });
 }
 
 // ═════════════ SECURITY AUDIT ═════════════
@@ -220,7 +224,8 @@ function terminal(job) {
     const ch = CHALLENGES[ids[idx]]; const w = newWorld(); ch.setup(w); let hintsUsed = 0;
     body.innerHTML = '';
     const out = h('div', { class: 'term-out' });
-    const input = h('input', { class: 'term-in', spellcheck: false, autocomplete: 'off', placeholder: 'type a command… (help, hint)' });
+    const input = h('input', { class: 'term-in', spellcheck: false, autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off',
+      enterkeyhint: 'go', 'aria-label': 'Terminal command', placeholder: 'Command' });
     const objs = h('div', { class: 'term-objs' });
     const hist = []; let hi = 0;
     const print = (txt, cls = '') => { if (txt === '\x1bclear') { out.innerHTML = ''; return; } if (txt) out.append(h('pre', { class: 'tl ' + cls }, txt)); out.scrollTop = out.scrollHeight; };
@@ -234,26 +239,35 @@ function terminal(job) {
       if (all) {
         const s = Math.max(0.5, 1 - hintsUsed * 0.12);
         objs.append(h('div', { class: 'good' }, '✔ Challenge complete'), h('button', { class: 'btn', onclick: () => { scores.push(s); idx++; idx < ids.length ? start() : (m.close(), finish(job, scores.reduce((a, b) => a + b, 0) / scores.length)); } }, idx + 1 < ids.length ? 'Next challenge ▸' : 'Finish ▸'));
-        input.disabled = true;
+        input.disabled = submit.disabled = prev.disabled = next.disabled = true;
       }
       objs.append(h('button', { class: 'btn ghost small', onclick: () => { const hnt = ch.hints[Math.min(hintsUsed, ch.hints.length - 1)]; hintsUsed++; print('hint: ' + hnt, 'hint'); } }, `Hint (${hintsUsed}/${ch.hints.length})`));
     };
+    function history(offset) {
+      hi = Math.max(0, Math.min(hist.length, hi + offset));
+      input.value = hist[hi] || '';
+    }
     input.addEventListener('keydown', e => {
       if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') sfx('key_press', e.key === 'Enter' ? { vol: 0.3 } : {});
-      if (e.key === 'Enter') {
-        const line = input.value; input.value = ''; hist.push(line); hi = hist.length;
-        print('$ ' + line, 'cmd');
-        if (line.trim() === 'hint') { const hnt = ch.hints[Math.min(hintsUsed, ch.hints.length - 1)]; hintsUsed++; print('hint: ' + hnt, 'hint'); }
-        else if (line.trim() === 'yes' && w.flags.pendingApply) { w.flags.applyConfirmed = true; print(run(w, 'terraform apply')); w.flags.applyConfirmed = false; w.flags.pendingApply = false; }
-        else print(run(w, line));
-        renderObjs();
-      } else if (e.key === 'ArrowUp') { hi = Math.max(0, hi - 1); input.value = hist[hi] || ''; e.preventDefault(); }
-      else if (e.key === 'ArrowDown') { hi = Math.min(hist.length, hi + 1); input.value = hist[hi] || ''; e.preventDefault(); }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); history(e.key === 'ArrowUp' ? -1 : 1); }
     });
-    body.append(h('div', { class: 'term' }, out, h('div', { class: 'term-line' }, h('span', { class: 'prompt' }, S.villain ? 'root@signal:~$' : 'you@cloud:~$'), input)), objs);
+    const submit = h('button', { class: 'btn small term-touch', type: 'submit' }, 'Run');
+    const prev = h('button', { class: 'btn ghost small term-touch', type: 'button', 'aria-label': 'Previous command', onclick: () => history(-1) }, '↑');
+    const next = h('button', { class: 'btn ghost small term-touch', type: 'button', 'aria-label': 'Next command', onclick: () => history(1) }, '↓');
+    const form = h('form', { class: 'term-line', onsubmit(event) {
+      event.preventDefault();
+      if (input.disabled) return;
+      const line = input.value; input.value = ''; hist.push(line); hi = hist.length;
+      print('$ ' + line, 'cmd');
+      if (line.trim() === 'hint') { const hnt = ch.hints[Math.min(hintsUsed, ch.hints.length - 1)]; hintsUsed++; print('hint: ' + hnt, 'hint'); }
+      else if (line.trim() === 'yes' && w.flags.pendingApply) { w.flags.applyConfirmed = true; print(run(w, 'terraform apply')); w.flags.applyConfirmed = false; w.flags.pendingApply = false; }
+      else print(run(w, line));
+      renderObjs();
+    } }, h('span', { class: 'prompt' }, S.villain ? 'root@signal:~$' : 'you@cloud:~$'), input, prev, next, submit);
+    body.append(h('div', { class: 'term' }, out, form), objs);
     print(`UPTIME shell — ${ch.title}\nType "help" for commands. Files: ${Object.keys(w.files).join(', ') || '(none)'}`);
     renderObjs();
-    setTimeout(() => input.focus(), 50);
+    if (!hasTouch()) setTimeout(() => input.focus(), 50);
   };
   start();
 }

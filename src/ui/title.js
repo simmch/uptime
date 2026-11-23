@@ -1,6 +1,7 @@
 // Title screen, intro and endings.
 import { h, $, money } from './dom.js';
 import './rooftop.css';
+import { openAudioSettings } from './audio.js';
 import { startRooftop } from '../render/rooftop.js';
 import { App, registerScreen, show, renderHUD, runStory, dialogue } from './app.js';
 import { S, setState, newState, load, save, wipe, title as titleOf, xpForLevel } from '../core/state.js';
@@ -34,7 +35,8 @@ registerScreen('title', {
       h('div', { class: 'rooftop-menu' },
         saved && h('button', { class: 'btn ghost big', type: 'button', onclick: () => { setState(saved); startGame(); } },
           `Continue — ${saved.name}, day ${saved.day}`),
-        newGame)));
+        newGame,
+        h('button', { class: 'btn ghost audio-entry', type: 'button', onclick: openAudioSettings }, 'Audio settings'))));
     this.stopRooftop = startRooftop(canvas, thought);
   },
   leave() {

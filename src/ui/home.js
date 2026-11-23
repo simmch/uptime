@@ -156,9 +156,10 @@ registerScreen('office', {
     const phone = actionButton('Ask a friend', () => openPhone(), { class: 'home-phone help-button' });
     phone.prepend(h('span', { html: icon('phone', 28) }));
     const decorate = actionButton('Decorate', openDecor, { class: 'btn ghost small home-decorate' });
-    const hint = h('span', { class: 'home-walk-hint' }, 'WASD / arrows to walk');
+    const hint = h('span', { class: 'home-walk-hint desktop-input-hint' }, 'WASD / arrows to walk');
     const objective = h('span', { class: 'home-objective', hidden: Boolean(S.jobsDone) }, 'Walk to your computer to start work');
-    const dpad = h('div', { class: 'home-dpad', 'aria-label': 'Walk controls' });
+    const dpad = h('div', { class: 'home-dpad', role: 'group', 'aria-label': 'Walk controls' });
+    const padButtons = new Map();
     let selectedId;
     let walking = false;
     let distanceToStep = 0;
@@ -171,9 +172,7 @@ registerScreen('office', {
       if (isPaused()) return;
       const nearby = App.world.homeView.nearest();
       if (nearby) {
-        keys.clear();
-        touches.clear();
-        if (walking) save();
+        release();
         interact(nearby);
       }
     }
@@ -182,22 +181,30 @@ registerScreen('office', {
       if (walking || keys.size || touches.size) save();
       keys.clear();
       touches.clear();
+      updatePad();
       distanceToStep = 0;
+    }
+
+    function updatePad() {
+      const held = new Set(touches.values());
+      for (const [direction, button] of padButtons) button.setAttribute('aria-pressed', String(held.has(direction)));
     }
 
     for (const [label, key, direction] of [
       ['Walk up', '▲', 'KeyW'], ['Walk left', '◀', 'KeyA'],
       ['Walk down', '▼', 'KeyS'], ['Walk right', '▶', 'KeyD'],
     ]) {
-      const button = actionButton(key, null, { class: 'home-arrow', 'aria-label': label });
+      const button = actionButton(key, null, { class: 'home-arrow', 'aria-label': label, 'aria-pressed': 'false' });
+      padButtons.set(direction, button);
       button.addEventListener('pointerdown', event => {
-        if (event.button !== 0 || isPaused()) return;
+        if ((event.pointerType !== 'touch' && event.button !== 0) || isPaused()) return;
         event.preventDefault();
         button.setPointerCapture(event.pointerId);
         touches.set(event.pointerId, direction);
+        updatePad();
       }, { signal });
       for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-        button.addEventListener(name, event => touches.delete(event.pointerId), { signal });
+        button.addEventListener(name, event => { if (touches.delete(event.pointerId)) updatePad(); }, { signal });
       }
       dpad.append(button);
     }
@@ -221,6 +228,7 @@ registerScreen('office', {
     }, { signal });
     window.addEventListener('keyup', event => keys.delete(event.code), { signal });
     window.addEventListener('blur', release, { signal });
+    window.addEventListener('pagehide', release, { signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) release(); }, { signal });
 
     App.world.homeTick = dt => {

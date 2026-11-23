@@ -34,7 +34,7 @@ registerScreen('drive', {
       CREDITS.map(([role, name]) => h('div', { class: role ? 'drive-credit' : 'drive-credit drive-logo' },
         role ? h('span', {}, role) : null, h('strong', {}, name)))));
     const subtitle = h('p', { class: 'drive-subtitle', 'aria-live': 'polite', 'aria-atomic': 'true', hidden: true });
-    const accelerator = h('button', { class: 'drive-accelerator', type: 'button' },
+    const accelerator = h('button', { class: 'drive-accelerator', type: 'button', 'aria-pressed': 'false' },
       h('kbd', {}, 'W'), h('span', {}, 'Hold to drive'));
     const fade = h('div', { class: 'drive-fade', 'aria-hidden': 'true' });
     const controls = h('div', { class: 'drive-controls' }, accelerator);
@@ -63,6 +63,7 @@ registerScreen('drive', {
       if (pressed === moving) return;
       moving = pressed;
       accelerator.classList.toggle('on', moving);
+      accelerator.setAttribute('aria-pressed', String(moving));
       setLoopVolume('engine_drive', moving ? drivingVolume : idleVolume, moving ? .35 : .55);
     }
 
@@ -90,10 +91,11 @@ registerScreen('drive', {
       if (keys.delete(event.code)) updatePedal();
     }, { signal });
     window.addEventListener('blur', release, { signal });
+    window.addEventListener('pagehide', release, { signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) release(); }, { signal });
 
     accelerator.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || elapsed >= parkTime) return;
+      if ((event.pointerType !== 'touch' && event.button !== 0) || elapsed >= parkTime) return;
       event.preventDefault();
       accelerator.setPointerCapture(event.pointerId);
       pointers.add(event.pointerId);

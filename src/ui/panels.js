@@ -10,7 +10,9 @@ import { COMPONENT, COMPONENTS } from '../data/components.js';
 import { drawQuestions } from '../data/quiz.js';
 import { mulberry32 } from '../sim/rng.js';
 import * as G from '../game.js';
-import { sfx, toggleSound } from '../audio/sfx.js';
+import { sfx } from '../audio/sfx.js';
+import { openAudioSettings } from './audio.js';
+import { hasTouch } from './mobile.js';
 import { HOUSING_ROOMS, ROOM_NAMES } from '../data/legacy.js';
 
 // ═════════════ SKILLS ═════════════
@@ -188,19 +190,25 @@ App.panels.settings = function () {
     h('p', {}, 'The game autosaves to this browser after every action.'),
     h('div', { class: 'row gap wrap' },
       h('button', { class: 'btn', onclick: () => { save(); toast('Saved.'); } }, 'Save now'),
-      h('button', { class: 'btn ghost', 'data-sfx': 'none', 'aria-pressed': String(S.settings?.sound !== false), onclick: e => {
-        const enabled = toggleSound();
-        save();
-        e.currentTarget.textContent = `Sound effects: ${enabled ? 'On' : 'Off'}`;
-        e.currentTarget.setAttribute('aria-pressed', String(enabled));
-        if (enabled) sfx('ui_click');
-      } }, `Sound effects: ${S.settings?.sound === false ? 'Off' : 'On'}`),
+      h('button', { class: 'btn ghost', onclick: openAudioSettings }, 'Audio settings'),
       h('button', { class: 'btn ghost', onclick: () => { navigator.clipboard?.writeText(exportSave()); toast('Save code copied to clipboard.'); } }, 'Export save code'),
       h('button', { class: 'btn ghost', onclick: () => { try { importSave(ta.value); toast('Imported.'); location.reload(); } catch (e) { toast('Invalid save code.', 'bad'); } } }, 'Import'),
       h('button', { class: 'btn danger', onclick: async () => { if (await confirmBox('Delete your save and start over?', { ok: 'Delete' })) { wipe(); location.reload(); } } }, 'New game')),
     ta,
     h('div', { class: 'panel-title' }, 'CONTROLS'),
-    h('ul', { class: 'small' }, h('li', {}, 'Home: WASD or arrows to walk, E to interact, P to call a friend.'), h('li', {}, 'Work diorama: drag to pan, right-drag or Shift-drag to rotate, and wheel to zoom.'), h('li', {}, 'Build: click a component, then a region or AZ. Delete key removes the selection. Esc cancels placing.'), h('li', {}, 'Dialogue: click or Space.')),
+    h('ul', { class: 'small' }, (hasTouch() ? [
+      'Drive: hold the on-screen pedal. Release it to stop.',
+      'Home: hold the direction buttons to walk. Tap the nearby action or Ask a friend.',
+      'Map: drag to pan, pinch to zoom, and twist two fingers to rotate. Camera buttons also work with one finger.',
+      'Build: open Components, then tap the map or choose a location. Use Cancel to leave placement and Inspector to remove a component.',
+      'Terminal: tap Run to submit a command. Use the arrow buttons for command history.',
+      'Dialogue: tap to continue.',
+    ] : [
+      'Home: WASD or arrows to walk, E to interact, P to call a friend.',
+      'Work diorama: drag to pan, right-drag or Shift-drag to rotate, and wheel to zoom.',
+      'Build: click a component, then a region or AZ. Delete removes your selection. Esc cancels placing.',
+      'Dialogue: click or press Space.',
+    ]).map(text => h('li', {}, text))),
     h('div', { class: 'panel-title' }, 'CREDITS'),
     h('p', { class: 'small muted' }, 'Sprites: Pixel Art Atlas 1.4M by Angais (CC0), huggingface.co/datasets/Angais/pixel-art-atlas-1.4m. Rendering: three.js. Prices are simplified approximations of public cloud list prices for teaching.'));
   modal(body, { title: 'SAVE & SETTINGS' });

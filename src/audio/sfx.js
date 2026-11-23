@@ -1,7 +1,8 @@
 // Sound effects (generated with ElevenLabs Sound Effects v3).
 // Files live in src/sound_effects/<name>.mp3. Web Audio for low latency;
 // long clips are faded out at `max` seconds so they work as short cues.
-import { S, load as loadSave } from '../core/state.js';
+import { S } from '../core/state.js';
+import { audioLevel } from './preferences.js';
 import { on } from '../core/events.js';
 
 const files = import.meta.glob('../sound_effects/*.mp3', { eager: true, query: '?url', import: 'default' });
@@ -35,7 +36,6 @@ const LIFE_CUES = {
   eat: 'eat', pantry: 'eat', toilet: 'toilet', shower: 'shower', sleep: 'sleep',
   groceries: 'grocery_bag', post: 'post_like', decorate: 'decor_place', party: 'party', socialNews: 'email_ping',
 };
-const savedPreference = loadSave()?.settings?.sound;
 const buffers = new Map();
 const pending = new Map();
 const last = new Map();
@@ -46,11 +46,11 @@ let ctx, master, masterTarget;
 let muteVersion = 0;
 let warmed = false;
 
-export const soundOn = () => (S ? S.settings?.sound : savedPreference) !== false;
+const soundOn = () => audioLevel('effects') > 0;
 
 function syncMaster() {
   if (!master) return;
-  const target = soundOn() && !document.hidden ? MASTER_VOLUME : 0;
+  const target = document.hidden ? 0 : MASTER_VOLUME * audioLevel('effects');
   if (target === masterTarget) return;
   masterTarget = target;
   muteVersion++;
@@ -65,7 +65,7 @@ function context() {
   if (!AudioEngine || navigator.userActivation?.hasBeenActive === false) return null;
   try { ctx = new AudioEngine(); } catch { return null; }
   master = ctx.createGain();
-  masterTarget = soundOn() && !document.hidden ? MASTER_VOLUME : 0;
+  masterTarget = document.hidden ? 0 : MASTER_VOLUME * audioLevel('effects');
   master.gain.value = masterTarget;
   master.connect(ctx.destination);
   return ctx;
@@ -195,13 +195,6 @@ export function stopLoop(name, fade = .6) {
   entry.source.stop(ctx.currentTime + fade);
 }
 
-export function toggleSound() {
-  const settings = S.settings ??= {};
-  settings.sound = !soundOn();
-  syncMaster();
-  return settings.sound;
-}
-
 function warm() {
   if (!soundOn()) return;
   const audio = context();
@@ -216,6 +209,7 @@ document.addEventListener('pointerdown', warm, { capture: true });
 document.addEventListener('pointerup', warm, { capture: true });
 document.addEventListener('keydown', warm, { capture: true });
 document.addEventListener('visibilitychange', syncMaster);
+on('audioSettings', syncMaster);
 document.addEventListener('click', event => {
   const button = event.target.closest?.('button');
   if (button && !button.matches(':disabled') && button.dataset.sfx !== 'none') sfx('ui_click');

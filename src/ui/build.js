@@ -1,6 +1,7 @@
 // Build mode (design the architecture) and Run mode (watch it survive).
 import { h, $, money, num, modal, toast, confirmBox, sparkline } from './dom.js';
 import { icon } from '../render/atlas.js';
+import { cameraControls, hasTouch, isCompact, setDrawer } from './mobile.js';
 import { App, registerScreen, show, renderHUD, runStory, dialogue } from './app.js';
 import { S, save, spend, canSpend, creditLimit } from '../core/state.js';
 import { COMPONENTS, COMPONENT, LAYERS, defaultConfig, PURCHASE } from '../data/components.js';
@@ -34,12 +35,18 @@ registerScreen('build', {
     App.world.buildArch(this.design, { job });
     this.unpick = (this.onPick ||= hit => this.pick(hit));
     if (!this.bound) { App.world.on('pick', hit => App.screen === 'build' && this.pick(hit)); this.bound = true; }
-    this.keyH = e => { if (e.key === 'Escape') { this.placing = null; App.world.highlight(null); this.render(); } if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) this.remove(this.selected); };
+    this.keyH = e => { if (e.key === 'Escape') this.cancelPlacement(); if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) this.remove(this.selected); };
     document.addEventListener('keydown', this.keyH);
     this.render();
     if (!S.flags.buildTutorial) {
       S.flags.buildTutorial = true; save();
-      dialogue([['mara', 'Build mode. Left: components you know. Click one, then click where it goes — a region platform or an AZ tile. Global things (DNS, CDN, security) go in the edge column automatically.'], ['mara', 'Right side: the contract, the inspector for whatever you select, and a pre-flight review. Drag to pan, wheel to zoom, right-drag to rotate. When ready: Deploy.']]);
+      dialogue(hasTouch() ? [
+        ['mara', 'Open Components, pick one, then tap a region or AZ on the map. You can also choose its location from the menu. Global components go to the edge automatically.'],
+        ['mara', 'Drag to pan. Pinch to zoom or twist two fingers to rotate. The Camera controls do the same. Check Inspector and Review before you tap Deploy.'],
+      ] : [
+        ['mara', 'Build mode. Left: components you know. Click one, then click where it goes — a region platform or an AZ tile. Global things (DNS, CDN, security) go in the edge column automatically.'],
+        ['mara', 'Right side: the contract, the inspector for whatever you select, and a pre-flight review. Drag to pan, wheel to zoom, right-drag to rotate. When ready: Deploy.'],
+      ]);
     }
   },
   leave() { document.removeEventListener('keydown', this.keyH); App.world.highlight(null); },
@@ -52,9 +59,24 @@ registerScreen('build', {
       if (c.scope === 'az' && hit?.kind === 'az') return this.place(c, hit.region, hit.az);
       if (c.scope === 'region' && (hit?.kind === 'region' || hit?.kind === 'az')) return this.place(c, hit.region, null);
       if (hit?.kind === 'node') { this.placing = null; App.world.highlight(null); }
-      else return toast(c.scope === 'az' ? 'Click an AZ tile (the three squares in a region).' : 'Click a region platform.', 'info', 1800);
+      else {
+        const target = c.scope === 'az' ? 'an AZ tile (the three squares in a region)' : 'a region platform';
+        return toast(`${hasTouch() ? 'Tap' : 'Click'} ${target}.`, 'info', 1800);
+      }
     }
-    if (hit?.kind === 'node') { this.selected = hit.uid; this.tab = 'inspect'; this.rebuild(); }
+    if (hit?.kind === 'node') {
+      this.selected = hit.uid;
+      this.tab = 'inspect';
+      this.rebuild();
+      if (isCompact()) setDrawer('inspector');
+    }
+  },
+
+  cancelPlacement() {
+    if (!this.placing) return;
+    this.placing = null;
+    App.world.highlight(null);
+    this.render();
   },
 
   startPlace(c) {
@@ -67,6 +89,7 @@ registerScreen('build', {
     if (regs.length === 1 && c.scope === 'region') return this.place(c, regs[0], null);
     this.placing = c.id; App.world.highlight(c.scope === 'az' ? 'az' : 'region');
     this.render();
+    if (isCompact()) setDrawer(null);
   },
   place(c, region, az) {
     const R = this.design.nodes.filter(n => n.region === region);
@@ -77,7 +100,14 @@ registerScreen('build', {
     this.placing = null; App.world.highlight(null);
     this.add(n);
   },
-  add(n) { sfx('place_component'); this.design.nodes.push(n); this.selected = n.uid; this.tab = 'inspect'; this.rebuild(); },
+  add(n) {
+    sfx('place_component');
+    this.design.nodes.push(n);
+    this.selected = n.uid;
+    this.tab = 'inspect';
+    this.rebuild();
+    if (isCompact()) setDrawer('inspector');
+  },
   async remove(uid) {
     const n = this.design.nodes.find(x => x.uid === uid); if (!n) return;
     if (n.id === 'vpc') {
@@ -123,7 +153,7 @@ registerScreen('build', {
       h('button', { class: 'btn deploy', onclick: () => this.deploy() }, 'DEPLOY ▸'));
     // palette
     const pal = h('div', { class: 'palette panel' }, h('div', { class: 'panel-title' }, 'COMPONENTS'));
-    if (this.placing) pal.append(h('div', { class: 'placing' }, `Placing ${COMPONENT[this.placing].name}… click ${COMPONENT[this.placing].scope === 'az' ? 'an AZ tile' : 'a region'} · Esc to cancel`));
+    if (this.placing) pal.append(h('div', { class: 'placing desktop-input-hint' }, `Placing ${COMPONENT[this.placing].name}… click ${COMPONENT[this.placing].scope === 'az' ? 'an AZ tile' : 'a region'} · Esc to cancel`));
     for (const L of LAYERS) {
       const items = COMPONENTS.filter(c => c.layer === L.id && (c.id !== 'bastion' || true));
       if (!items.length) continue;
@@ -141,6 +171,23 @@ registerScreen('build', {
       h('div', { class: 'tabs' }, ...tabs.map(([id, l]) => h('button', { class: 'tab ' + (this.tab === id ? 'on' : ''), onclick: () => { this.tab = id; this.render(); } }, l))),
       h('div', { class: 'tabbody' }, this.renderTab()));
     root.append(top, pal, right);
+    if (this.placing) root.append(this.placementControls());
+    root.append(cameraControls(App.world));
+  },
+
+  placementControls() {
+    const component = COMPONENT[this.placing];
+    const targets = this.design.regions.flatMap(region => component.scope === 'az'
+      ? [0, 1, 2].map(az => ({ region, az, label: region + 'abc'[az] })) : [{ region, az: null, label: region }]);
+    const select = h('select', { class: 'sel', onchange: event => {
+      if (!event.target.value) return;
+      const { region, az } = targets[Number(event.target.value)];
+      event.target.value = '';
+      this.place(component, region, az);
+    } }, h('option', { value: '' }, 'Choose location'),
+    targets.map((target, index) => h('option', { value: index }, target.label)));
+    return h('div', { class: 'm-placement panel' }, h('label', {}, component.name, select),
+      h('button', { class: 'btn ghost small', type: 'button', onclick: () => this.cancelPlacement() }, 'Cancel'));
   },
 
   renderTab() {
@@ -247,6 +294,7 @@ registerScreen('run', {
     this.root = root; this.job = job; this.design = JSON.parse(JSON.stringify(design));
     this.sim = createSim(this.design, job, { skills: S.skills, charge: amt => { spend(amt, 'Infrastructure'); return S.money >= -creditLimit(); } });
     this.speed = 1; this.paused = false; this.acc = 0; this.shownLog = 0; this.hasMon = this.sim.ar.has('monitor'); this.complaints = 0;
+    this.actionSignature = null;
     App.world.buildArch(this.design, { job });
     root.append(this.ui());
     this.last = performance.now();
@@ -261,14 +309,18 @@ registerScreen('run', {
       metrics: h('div', { class: 'metrics' }), log: h('div', { class: 'log' }), actions: h('div', { class: 'actions' }),
       c1: h('canvas', { width: 260, height: 54 }), c2: h('canvas', { width: 260, height: 40 }), c3: h('canvas', { width: 260, height: 40 }),
     };
-    const speedBtns = h('div', { class: 'speeds' }, h('button', { class: 'btn small ghost', onclick: e => { this.paused = !this.paused; e.target.textContent = this.paused ? '▶' : '❚❚'; } }, '❚❚'), ...speeds.map(s => h('button', { class: 'btn small ' + (s === 1 ? '' : 'ghost'), onclick: e => { this.speed = s; [...e.target.parentNode.children].slice(1).forEach(b => b.classList.add('ghost')); e.target.classList.remove('ghost'); } }, s + '×')));
+    const speedBtns = h('div', { class: 'speeds' }, h('button', { class: 'btn small ghost', 'aria-label': 'Pause simulation', onclick: e => {
+      this.paused = !this.paused;
+      e.currentTarget.textContent = this.paused ? '▶' : '❚❚';
+      e.currentTarget.setAttribute('aria-label', this.paused ? 'Resume simulation' : 'Pause simulation');
+    } }, '❚❚'), ...speeds.map(s => h('button', { class: 'btn small ' + (s === 1 ? '' : 'ghost'), onclick: e => { this.speed = s; [...e.currentTarget.parentNode.children].slice(1).forEach(b => b.classList.add('ghost')); e.currentTarget.classList.remove('ghost'); } }, s + '×')));
     return h('div', { class: 'runui' },
       h('div', { class: 'run-top panel' }, h('div', { class: 'bt-title' }, '● LIVE · ' + this.job.title), this.el.clock, h('div', { class: 'tbar' }, this.el.bar),
         h('button', { class: 'btn help-button small', onclick: () => App.panels.phone({ job: this.job }) }, 'Ask a friend'), speedBtns),
       h('div', { class: 'run-left panel' }, h('div', { class: 'panel-title' }, 'EVENTS'), this.el.log),
       h('div', { class: 'run-right panel' }, h('div', { class: 'panel-title' }, 'METRICS'), this.el.metrics,
         h('div', { class: 'small muted' }, 'traffic: demand (blue) · served (green)'), this.el.c1, h('div', { class: 'small muted' }, 'error rate'), this.el.c2, h('div', { class: 'small muted' }, 'cost / day'), this.el.c3),
-      h('div', { class: 'run-bottom' }, this.el.actions));
+      h('div', { class: 'run-bottom' }, this.el.actions), cameraControls(App.world));
   },
   frame(now) {
     const dt = Math.min(0.25, (now - this.last) / 1000); this.last = now;
@@ -319,10 +371,27 @@ registerScreen('run', {
       if (e.level === 'attack' && Math.random() < 0.6 && !S.villain) { const taunts = ['knock knock.', 'is this thing on?', 'your edge is showing.', 'tick tock.', 'cute firewall.']; E.log.prepend(h('div', { class: 'lrow null' }, h('span', { class: 'lt' }, 'NULL'), h('span', {}, taunts[Math.floor(Math.random() * taunts.length)]))); }
     }
     // actions
-    if (sim.t % 2 === 0) {
-      E.actions.innerHTML = '';
-      for (const a of availableActions(sim)) E.actions.append(h('button', { class: 'btn action', disabled: !canSpend(a.cost), onclick: () => { sfx('action_typing'); spend(a.cost, a.label); doAction(sim, a); renderHUD(); E.actions.innerHTML = ''; } }, a.label, h('small', {}, ' ' + money(a.cost))));
-    }
+    if (sim.t % 2 === 0) this.renderActions();
+  },
+  renderActions() {
+    const sim = this.sim;
+    const key = action => JSON.stringify([action.id, action.cost, action.node?.uid, sim.incidents.indexOf(action.inc)]);
+    const actions = sim.done ? [] : availableActions(sim);
+    const signature = actions.map(action => key(action) + canSpend(action.cost)).join(';');
+    // Keep an available button mounted while a finger is down between simulation ticks.
+    if (signature === this.actionSignature) return;
+    this.actionSignature = signature;
+    this.el.actions.replaceChildren(...actions.map(action => h('button', {
+      class: 'btn action', disabled: !canSpend(action.cost), onclick: () => {
+        const stillAvailable = !sim.done && availableActions(sim).find(candidate => key(candidate) === key(action));
+        if (!stillAvailable || !canSpend(stillAvailable.cost)) return this.renderActions();
+        sfx('action_typing');
+        spend(stillAvailable.cost, stillAvailable.label);
+        doAction(sim, stillAvailable);
+        renderHUD();
+        this.renderActions();
+      },
+    }, action.label, h('small', {}, ' ' + money(action.cost)))));
   },
   async finish() {
     const res = results(this.sim);
