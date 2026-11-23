@@ -1,15 +1,19 @@
-// Landing page loops one track. Every scene in the car loops the other.
+// Landing page, the car, the house, and the work computer each loop their own track.
 const VOLUME = 0.62;
 const FADE_SECONDS = 0.7;
 
 const PLAYERS = {
   triumph: track('Triumph in the Key of C.mp3'),
   rising: track('Rising Across the Clouds.mp3'),
+  lounge: track('Smooth Lounge Loop.mp3'),
+  lobby: track('Lobby Loop.mp3'),
 };
 
-const SCREEN_TRACK = { title: 'triumph', drive: 'rising' };
+const SCREEN_TRACK = { title: 'triumph', drive: 'rising', office: 'lounge' };
 
 let want = null;
+let screen = null;
+let atComputer = false;
 let timer = 0;
 let last = 0;
 
@@ -61,8 +65,12 @@ function step() {
   if (!timer) last = 0;
 }
 
-export function syncMusic(screen) {
-  const next = SCREEN_TRACK[screen] ?? null;
+function choose(name) {
+  if (name === 'office' && atComputer) return 'lobby';
+  return SCREEN_TRACK[name] ?? null;
+}
+
+function play(next) {
   if (next === want) {
     if (want) ensurePlaying(PLAYERS[want]);
     return;
@@ -70,4 +78,16 @@ export function syncMusic(screen) {
   want = next;
   if (want) ensurePlaying(PLAYERS[want]);
   fade();
+}
+
+export function syncMusic(name) {
+  screen = name;
+  if (name !== 'office') atComputer = false;
+  play(choose(name));
+}
+
+// The work computer is a window over the house. Closing it returns to the walking track.
+export function setAtComputer(on) {
+  atComputer = !!on;
+  if (screen === 'office') play(choose('office'));
 }

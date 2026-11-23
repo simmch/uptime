@@ -14,6 +14,12 @@ npm run build      # production build in dist/
 
 Requires Node 18+. Saves go to browser localStorage (export/import a save code from **Save & Settings**).
 
+## Replace sound effects
+
+Replace a clip in `src/sound_effects/` with an MP3 that uses the same filename. For example, `ui_click.mp3` is the button sound, `footstep.mp3` plays when walking, and `car_park.mp3` plays on arrival. `engine_drive.mp3` and `server_hum.mp3` are looping clips. Levels, repeat limits, and fade lengths are set in `src/audio/sfx.js`.
+
+Run `npm run build` to include replacements in the production build. The **Sound effects** toggle in **Save & Settings** controls these clips. Music has its own player.
+
 ## How you play
 
 1. **Take a contract** from the job board (story contracts are pinned in gold).

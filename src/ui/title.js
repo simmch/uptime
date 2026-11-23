@@ -5,6 +5,7 @@ import { startRooftop } from '../render/rooftop.js';
 import { App, registerScreen, show, renderHUD, runStory, dialogue } from './app.js';
 import { S, setState, newState, load, save, wipe, title as titleOf, xpForLevel } from '../core/state.js';
 import { ENDINGS } from '../data/story.js';
+import { sfx } from '../audio/sfx.js';
 
 registerScreen('title', {
   enter(root) {
@@ -43,7 +44,9 @@ registerScreen('title', {
   },
 });
 
+let started = false;
 function startGame() {
+  if (!started) { started = true; sfx('game_start'); }
   if (S.flags?.drivePending) return show('drive', { onArrival: startGame });
   show('office');
   renderHUD();

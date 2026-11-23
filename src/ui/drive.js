@@ -4,6 +4,7 @@ import { DriveScene } from '../render/drive.js';
 import { S, save } from '../core/state.js';
 import { App, registerScreen } from './app.js';
 import { $, h } from './dom.js';
+import { sfx, loop, setLoopVolume, stopLoop } from '../audio/sfx.js';
 
 const MONOLOGUE = [
   [0.2, 6.5, 'Three years at the call center. Same headset, same chair that sank every shift.'],
@@ -53,12 +54,16 @@ registerScreen('drive', {
     let arrived = false;
     let currentLine;
     let wheel = 0;
+    let engineTimer;
+    const idleVolume = .09;
+    const drivingVolume = .28;
 
     function updatePedal() {
       const pressed = elapsed < parkTime && (keys.size > 0 || pointers.size > 0);
       if (pressed === moving) return;
       moving = pressed;
       accelerator.classList.toggle('on', moving);
+      setLoopVolume('engine_drive', moving ? drivingVolume : idleVolume, moving ? .35 : .55);
     }
 
     function release() {
@@ -114,6 +119,10 @@ registerScreen('drive', {
         if (parking >= (stayParked ? 0.65 : 1.45)) {
           arrived = true;
           if (!trip) { delete S.flags.drivePending; save(); }
+          clearTimeout(ignitionTimer);
+          clearTimeout(engineTimer);
+          stopLoop('engine_drive', .65);
+          sfx('car_park');
           onArrival();
           return;
         }
@@ -139,11 +148,22 @@ registerScreen('drive', {
       cockpit.draw(speed, wheel, parked);
     };
 
-    this.cleanup = () => { input.abort(); drive.dispose(); };
     App.world.setDrive(drive);
+    if (trip) sfx('car_door');
+    const ignitionTimer = setTimeout(() => {
+      sfx('engine_start');
+      engineTimer = setTimeout(() => loop('engine_drive', moving ? drivingVolume : idleVolume, .65), 950);
+    }, trip ? 550 : 0);
+    this.cleanup = () => {
+      clearTimeout(ignitionTimer);
+      clearTimeout(engineTimer);
+      input.abort();
+      drive.dispose();
+    };
   },
   leave() {
     App.world.setDrive(null);
+    stopLoop('engine_drive', 0.4);
     this.cleanup?.();
     this.cleanup = null;
     $('#hud').style.display = '';

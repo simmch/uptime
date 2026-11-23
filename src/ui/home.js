@@ -6,6 +6,7 @@ import { on } from '../core/events.js';
 import { care, takeGroceryTrip } from '../core/life.js';
 import { CARE, HOME_SPAWN } from '../data/life.js';
 import { icon } from '../render/atlas.js';
+import { sfx } from '../audio/sfx.js';
 import { openDecor, openGroceries, openPhone, watchTV } from './phone.js';
 
 const MOVEMENT = {
@@ -147,6 +148,7 @@ registerScreen('office', {
     const dpad = h('div', { class: 'home-dpad', 'aria-label': 'Walk controls' });
     let selectedId;
     let walking = false;
+    let distanceToStep = 0;
 
     function isPaused() {
       return App.busy || !!$('#modals .modal-back, #dialogue.on, .chapter-card.on');
@@ -167,6 +169,7 @@ registerScreen('office', {
       if (walking || keys.size || touches.size) save();
       keys.clear();
       touches.clear();
+      distanceToStep = 0;
     }
 
     for (const [label, key, direction] of [
@@ -217,7 +220,19 @@ registerScreen('office', {
       const axis = index => Number(directions.some(value => value[index] > 0)) - Number(directions.some(value => value[index] < 0));
       if (!pressed.size && walking) save();
       walking = pressed.size > 0;
-      const nearby = App.world.homeView.update(axis(0), axis(1), dt);
+      const view = App.world.homeView;
+      const { x, z } = view.position;
+      const nearby = view.update(axis(0), axis(1), dt);
+      const distance = Math.hypot(view.position.x - x, view.position.z - z);
+      if (distance > 0) {
+        distanceToStep -= distance;
+        if (distanceToStep <= 0) {
+          sfx('footstep');
+          distanceToStep += 1.4;
+        }
+      } else {
+        distanceToStep = 0;
+      }
       if (nearby?.id !== selectedId || (nearby && prompt.hidden)) {
         selectedId = nearby?.id;
         prompt.hidden = !nearby;

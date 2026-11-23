@@ -10,6 +10,7 @@ import { COMPONENT, COMPONENTS } from '../data/components.js';
 import { drawQuestions } from '../data/quiz.js';
 import { mulberry32 } from '../sim/rng.js';
 import * as G from '../game.js';
+import { sfx, toggleSound } from '../audio/sfx.js';
 
 // ═════════════ SKILLS ═════════════
 App.panels.skills = function (focusId) {
@@ -97,6 +98,7 @@ function takeExam(id) {
   const qs = drawQuestions({ n: c.q, domains: c.domains, diff: c.diff, tags: c.tags, rng });
   quizRunner(qs, `${c.name} exam`, score => {
     const pass = score >= c.pass;
+    sfx(pass ? 'cert_pass' : 'fail_jingle');
     if (pass) { S.certs.push(id); S.sp += c.sp; gainXP(300 * c.sp, c.domains || ['net', 'compute', 'data', 'sec']); toast(`${icon('medal', 20)} <b>CERTIFIED:</b> ${c.name}`, 'good', 6000); }
     else toast(`Failed ${c.name} (${Math.round(score * 100)}%). Study the Codex and retry.`, 'bad', 6000);
     save(); renderHUD(); App.world.buildOffice(S); runStory();
@@ -118,7 +120,7 @@ export function quizRunner(qs, title, done) {
     const opts = h('div', { class: 'opts' });
     q.a.forEach((a, k) => opts.append(h('button', { class: 'opt', onclick: e => {
       if (answered) return; answered = true;
-      const ok = k === q.c; if (ok) correct++;
+      const ok = k === q.c; if (ok) correct++; sfx(ok ? 'answer_right' : 'answer_wrong');
       e.currentTarget.classList.add(ok ? 'right' : 'wrong'); opts.children[q.c].classList.add('right');
       body.append(h('div', { class: 'explain ' + (ok ? 'good' : 'bad') }, (ok ? '✔ Correct. ' : '✖ ') + (q.ex || '')), h('div', { class: 'row end' }, h('button', { class: 'btn', onclick: () => { i++; answered = false; render(); } }, 'Next ▸')));
     } }, a)));
@@ -174,6 +176,13 @@ App.panels.settings = function () {
     h('p', {}, 'The game autosaves to this browser after every action.'),
     h('div', { class: 'row gap wrap' },
       h('button', { class: 'btn', onclick: () => { save(); toast('Saved.'); } }, 'Save now'),
+      h('button', { class: 'btn ghost', 'data-sfx': 'none', 'aria-pressed': String(S.settings?.sound !== false), onclick: e => {
+        const enabled = toggleSound();
+        save();
+        e.currentTarget.textContent = `Sound effects: ${enabled ? 'On' : 'Off'}`;
+        e.currentTarget.setAttribute('aria-pressed', String(enabled));
+        if (enabled) sfx('ui_click');
+      } }, `Sound effects: ${S.settings?.sound === false ? 'Off' : 'On'}`),
       h('button', { class: 'btn ghost', onclick: () => { navigator.clipboard?.writeText(exportSave()); toast('Save code copied to clipboard.'); } }, 'Export save code'),
       h('button', { class: 'btn ghost', onclick: () => { try { importSave(ta.value); toast('Imported.'); location.reload(); } catch (e) { toast('Invalid save code.', 'bad'); } } }, 'Import'),
       h('button', { class: 'btn danger', onclick: async () => { if (await confirmBox('Delete your save and start over?', { ok: 'Delete' })) { wipe(); location.reload(); } } }, 'New game')),

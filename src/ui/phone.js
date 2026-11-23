@@ -5,6 +5,7 @@ import { S, canSpend } from '../core/state.js';
 import { DECOR, GROCERIES, localNews, popularityBonus } from '../data/life.js';
 import { FRIENDS, QUESTIONS, findQuestions, friendCanAnswer, isFriendAvailable } from '../data/questions.js';
 import { buyGroceries, changeDecor, dealPrice, groceryPrice, publishPost, readNews, throwParty } from '../core/life.js';
+import { sfx } from '../audio/sfx.js';
 
 const availableFriends = () => FRIENDS.filter(friend => isFriendAvailable(friend, S));
 
@@ -46,6 +47,7 @@ function callContext({ job, component }) {
 }
 
 export function openPhone({ job = S.active?.job, component } = {}) {
+  sfx('phone_open');
   let currentFriend = FRIENDS[0];
   let query = '';
   let currentAnswer = null;
@@ -68,6 +70,7 @@ export function openPhone({ job = S.active?.job, component } = {}) {
         h('p', { class: 'muted' }, 'Type a question or pick one below. Your friends explain terms in plain language and suggest something to try.'),
         form,
         context && phoneButton('Explain what I’m working on', () => {
+          sfx('phone_buzz', { vol: .22, max: .8, gap: 400 });
           currentAnswer = null;
           answer.replaceChildren(h('div', { class: 'life-kicker' }, currentFriend.name), context);
         }),
@@ -103,6 +106,7 @@ export function openPhone({ job = S.active?.job, component } = {}) {
   }
 
   function showAnswer(entry) {
+    if (canAnswer(entry)) sfx('phone_buzz', { vol: .22, max: .8, gap: 400 });
     currentAnswer = entry;
     answer.replaceChildren();
     if (!canAnswer(entry)) {
@@ -143,7 +147,7 @@ export function openPhone({ job = S.active?.job, component } = {}) {
     query = search.value;
     const best = renderSuggestions();
     if (best) showAnswer(best);
-    else answer.replaceChildren();
+    else { if (query.trim()) sfx('ui_error'); answer.replaceChildren(); }
   });
   renderContacts();
   renderSuggestions();
@@ -179,6 +183,7 @@ export function openFeed() {
 }
 
 export function watchTV() {
+  sfx('tv_on');
   const article = readNews('tv');
   return modal(h('div', { class: 'life-panel' }, headline(article)), { title: 'Local news on TV' });
 }

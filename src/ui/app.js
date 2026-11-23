@@ -7,8 +7,9 @@ import { CHARS } from '../data/story.js';
 import { DOMAINS } from '../data/domains.js';
 import { NEEDS, COMPLIANCE } from '../sim/review.js';
 import { popularityBonus, workBreak } from '../data/life.js';
-import { syncMusic } from '../audio/music.js';
+import { setAtComputer, syncMusic } from '../audio/music.js';
 import * as G from '../game.js';
+import { sfx } from '../audio/sfx.js';
 
 export const App = { world: null, screen: 'office', screens: {}, busy: false };
 
@@ -74,6 +75,7 @@ export function dialogue(lines) {
     const box = h('div', { class: 'dlg' }); root.innerHTML = ''; root.append(box); root.classList.add('on');
     const render = () => {
       const [who, text] = lines[i]; const c = CHARS[who] || CHARS.you;
+      if (who === 'null') sfx('null_glitch'); else if (who === 'hr') sfx('email_ping'); else if (who === 'autopilot') sfx('terminal_success');
       const name = who === 'you' ? S.name : c.name;
       box.innerHTML = '';
       const txt = h('div', { class: 'dlg-text' });
@@ -81,7 +83,7 @@ export function dialogue(lines) {
         h('div', { class: 'dlg-body' }, h('div', { class: 'dlg-name', style: { color: c.color } }, name, c.title ? h('small', {}, ' — ' + c.title) : null), txt,
           h('div', { class: 'dlg-hint' }, `${i + 1}/${lines.length} · click / space ▸`)));
       let k = 0; clearInterval(typing);
-      typing = setInterval(() => { k += 2; txt.textContent = text.slice(0, k); if (k >= text.length) { clearInterval(typing); typing = null; } }, 14);
+      typing = setInterval(() => { k += 2; if (k % 6 === 0) sfx('text_blip'); txt.textContent = text.slice(0, k); if (k >= text.length) { clearInterval(typing); typing = null; } }, 14);
       txt.dataset.full = text;
     };
     const next = () => {
@@ -102,7 +104,7 @@ export async function runStory() {
       const ev = G.tryAdvanceStory();
       if (!ev) break;
       if (ev.type === 'chapter') await chapterCard(ev.chapter);
-      else if (ev.type === 'lines') await dialogue(ev.step.lines);
+      else if (ev.type === 'lines') { const first = ev.step.lines?.[0]?.[0]; if (first && !['mara', 'you', 'null', 'devon', 'hr', 'autopilot'].includes(first)) sfx('phone_buzz'); await dialogue(ev.step.lines); }
       else if (ev.type === 'toast') toast(ev.html, 'warn', 6000);
       else if (ev.type === 'villain') { toast('You have joined NULL. The Signal awaits.', 'bad', 6000); }
       else if (ev.type === 'ending') { App.screens.ending && show('ending'); break; }
@@ -116,6 +118,7 @@ function chapterCard(ch) {
   return new Promise(res => {
     const el = h('div', { class: 'chapter-card' }, h('div', { class: 'cc-n' }, `CHAPTER ${ch.n}`), h('div', { class: 'cc-t' }, ch.title), h('div', { class: 'cc-s' }, ch.subtitle));
     document.body.append(el);
+    sfx('chapter_hit');
     setTimeout(() => el.classList.add('on'), 20);
     const done = () => { el.classList.remove('on'); setTimeout(() => { el.remove(); res(); }, 500); };
     el.addEventListener('click', done); setTimeout(done, 3200);
@@ -124,6 +127,7 @@ function chapterCard(ch) {
 
 // The job board is opened from the work computer in the house.
 export function openDesk() {
+  sfx('key_press', { vol: .23 });
   G.refreshBoard();
   const story = h('div', { class: 'panel story-card' }, h('div', { class: 'panel-title' }, 'STORY CONTRACT'));
   const step = G.step(), storyJob = G.currentStoryJob();
@@ -145,7 +149,8 @@ export function openDesk() {
     bonus > 0 ? h('span', { class: 'good' }, `Online visibility · +${+(bonus * 100).toFixed(1)}% to contract pay`) : null);
   const desk = modal(h('div', { class: 'desk' }, toolbar,
     urgent ? h('p', { class: 'hint' }, `Take a break before starting work. ${urgent.action}.`) : null, story, board),
-  { title: 'Work computer', wide: true });
+  { title: 'Work computer', wide: true, onClose: () => setAtComputer(false) });
+  setAtComputer(true);
 }
 
 export function handleRent(ev = []) {
@@ -221,9 +226,11 @@ export function jobBrief(job, closeDesk) {
 export function acceptJob(job) {
   const urgent = workBreak(S.life);
   if (urgent) {
+    sfx('ui_error');
     toast(`Take a break first. ${urgent.action}.`, 'warn');
     return false;
   }
+  sfx('job_accept');
   if (job.type === 'build') show('build', job);
   else App.labs.start(job);
   return true;

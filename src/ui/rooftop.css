@@ -37,6 +37,11 @@
   animation: rooftop-shine 8s linear infinite;
 }
 
+.rooftop-title[data-phase="day"] .rooftop-logo {
+  background-image: linear-gradient(118deg, #d4e7f3 15%, #fff2db 36%, #fffdf0 45%, #f7eccf 53%, #d1e9f3 67%);
+  filter: drop-shadow(0 4px #547292) drop-shadow(0 6px #344c6c) drop-shadow(0 0 13px #eee0b84d);
+}
+
 @keyframes rooftop-shine {
   0% { background-position: 100% 50%; }
   62%, 100% { background-position: 0 50%; }
@@ -54,6 +59,11 @@
   text-shadow: 0 2px #1b1733, 0 1px 10px #201e3a;
 }
 
+.rooftop-title[data-phase="day"] .rooftop-tagline {
+  color: #fff1d6;
+  text-shadow: 0 2px #344a69, 0 0 6px #395b86;
+}
+
 .rooftop-thought {
   position: absolute;
   left: 30%;
@@ -69,6 +79,7 @@
   font-size: clamp(18px, 2.1vw, 27px);
   line-height: .97;
   opacity: 0;
+  pointer-events: none;
   transform: translateY(4px);
   transition: opacity .35s ease-out, transform .35s ease-out;
 }
@@ -118,7 +129,13 @@
 
 @media (max-width: 660px) {
   .rooftop-heading { top: 20vh; }
-  .rooftop-menu { right: 50%; transform: translateX(50%); }
+  .rooftop-menu {
+    right: 4vw;
+    bottom: clamp(15px, 4vh, 40px);
+    width: min(356px, 62vw);
+    padding: 9px;
+  }
+  .rooftop-menu .btn.big { padding: 7px 9px; font-size: 19px; }
   .rooftop-thought { left: 33%; }
 }
 @media (max-height: 520px) and (min-width: 661px) {

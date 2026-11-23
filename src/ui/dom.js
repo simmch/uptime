@@ -1,4 +1,5 @@
 // Tiny DOM helpers.
+import { sfx } from '../audio/sfx.js';
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -30,12 +31,13 @@ let modalRoot;
 export function initModals(root) { modalRoot = root; }
 export function modal(content, { title = '', wide = false, closable = true, onClose = null, cls = '' } = {}) {
   const box = h('div', { class: `modal ${wide ? 'wide' : ''} ${cls}` },
-    title ? h('div', { class: 'modal-title' }, h('span', {}, title), closable ? h('button', { class: 'x', onclick: () => close() }, '✕') : null) : null,
+    title ? h('div', { class: 'modal-title' }, h('span', {}, title), closable ? h('button', { class: 'x', 'data-sfx': 'none', onclick: () => close() }, '✕') : null) : null,
     h('div', { class: 'modal-body' }, content));
   const back = h('div', { class: 'modal-back' }, box);
   if (closable) back.addEventListener('mousedown', e => { if (e.target === back) close(); });
   modalRoot.append(back);
-  function close() { back.remove(); onClose?.(); }
+  sfx('ui_open');
+  function close() { if (back.isConnected) sfx('ui_close'); back.remove(); onClose?.(); }
   return { close, el: box, body: box.querySelector('.modal-body') };
 }
 export function confirmBox(text, { ok = 'OK', cancel = 'Cancel', title = 'Confirm' } = {}) {
@@ -50,6 +52,7 @@ export function confirmBox(text, { ok = 'OK', cancel = 'Cancel', title = 'Confir
 let toastRoot;
 export function initToasts(root) { toastRoot = root; }
 export function toast(html, kind = 'info', ms = 3200) {
+  if (kind === 'bad') sfx('ui_error');
   const el = h('div', { class: `toast ${kind}`, html });
   toastRoot.append(el);
   setTimeout(() => el.classList.add('out'), ms);

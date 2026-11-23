@@ -77,7 +77,7 @@ registerScreen('build', {
     this.placing = null; App.world.highlight(null);
     this.add(n);
   },
-  add(n) { this.design.nodes.push(n); this.selected = n.uid; this.tab = 'inspect'; this.rebuild(); },
+  add(n) { sfx('place_component'); this.design.nodes.push(n); this.selected = n.uid; this.tab = 'inspect'; this.rebuild(); },
   async remove(uid) {
     const n = this.design.nodes.find(x => x.uid === uid); if (!n) return;
     if (n.id === 'vpc') {
@@ -86,6 +86,7 @@ registerScreen('build', {
       this.design.nodes = this.design.nodes.filter(x => x.region !== n.region || x.uid === uid);
     }
     this.design.nodes = this.design.nodes.filter(x => x.uid !== uid);
+    sfx('remove_component');
     this.selected = null; this.rebuild();
   },
   addRegion(r) {
@@ -230,12 +231,14 @@ registerScreen('build', {
     G.startOfJob(this.job);
     spend(setup, 'Setup labor');
     renderHUD();
+    sfx('deploy');
     show('run', { job: this.job, design: this.design });
   },
 });
 
 function field(label, input) { return h('div', { class: 'field' }, h('label', {}, label), input); }
 import { analyze } from '../sim/analyze.js';
+import { sfx, loop, stopLoop, gradeSound } from '../audio/sfx.js';
 function analyzeLite(d) { return analyze(d); }
 
 // ═════════════ RUN ═════════════
@@ -247,9 +250,10 @@ registerScreen('run', {
     App.world.buildArch(this.design, { job });
     root.append(this.ui());
     this.last = performance.now();
+    loop('server_hum', 0.1, 1.5);
     this.raf = requestAnimationFrame(this.frame.bind(this));
   },
-  leave() { cancelAnimationFrame(this.raf); App.world.stopSim(); },
+  leave() { cancelAnimationFrame(this.raf); App.world.stopSim(); stopLoop('server_hum'); },
   ui() {
     const speeds = [1, 2, 4].concat(S.gear.includes('monitor') ? [8] : []);
     this.el = {
@@ -307,17 +311,23 @@ registerScreen('run', {
       const time = `${String(8 + Math.floor(e.t * TICK_MIN / 60)).padStart(2, '0')}:${String((e.t * TICK_MIN) % 60).padStart(2, '0')}`;
       const line = h('div', { class: 'lrow ' + e.level }, h('span', { class: 'lt' }, time), h('span', {}, e.text), e.codex ? h('button', { class: 'link', onclick: () => App.panels.codex(e.codex) }, 'learn') : null);
       E.log.prepend(line);
+      if (/SUSPENDED/.test(e.text)) sfx('suspended');
+      else if (e.level === 'breach') sfx('breach_siren');
+      else if (e.level === 'attack') sfx('attack_glitch');
+      else if (e.level === 'incident') sfx(['az_outage', 'region_outage', 'provider_ban', 'legal_takedown'].includes(e.incident) ? 'outage' : 'incident_alert');
+      else if (e.level === 'good') sfx('recovery');
       if (e.level === 'attack' && Math.random() < 0.6 && !S.villain) { const taunts = ['knock knock.', 'is this thing on?', 'your edge is showing.', 'tick tock.', 'cute firewall.']; E.log.prepend(h('div', { class: 'lrow null' }, h('span', { class: 'lt' }, 'NULL'), h('span', {}, taunts[Math.floor(Math.random() * taunts.length)]))); }
     }
     // actions
     if (sim.t % 2 === 0) {
       E.actions.innerHTML = '';
-      for (const a of availableActions(sim)) E.actions.append(h('button', { class: 'btn action', disabled: !canSpend(a.cost), onclick: () => { spend(a.cost, a.label); doAction(sim, a); renderHUD(); E.actions.innerHTML = ''; } }, a.label, h('small', {}, ' ' + money(a.cost))));
+      for (const a of availableActions(sim)) E.actions.append(h('button', { class: 'btn action', disabled: !canSpend(a.cost), onclick: () => { sfx('action_typing'); spend(a.cost, a.label); doAction(sim, a); renderHUD(); E.actions.innerHTML = ''; } }, a.label, h('small', {}, ' ' + money(a.cost))));
     }
   },
   async finish() {
     const res = results(this.sim);
     const out = G.settleBuild(this.job, this.design, res, this.sim);
+    stopLoop('server_hum'); gradeSound(out.grade);
     renderHUD();
     const lessons = [];
     const seen = new Set();

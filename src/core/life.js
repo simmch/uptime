@@ -11,9 +11,9 @@ export function spendTime(minutes, { sleeping = false } = {}) {
   if (days) emit('rentEvents', advanceDays(days, { wearNeeds: false }));
 }
 
-function commit() {
+function commit(action) {
   save();
-  emit('life');
+  emit('life', action);
 }
 
 export function care(action) {
@@ -44,7 +44,7 @@ export function care(action) {
   } else {
     return false;
   }
-  commit();
+  commit(action);
   return true;
 }
 
@@ -63,7 +63,7 @@ export function readNews(source) {
       life.lastTv = S.day;
       changeNeed(life, 'morale', 9);
     }
-    commit();
+    commit(source === 'social' ? 'socialNews' : undefined);
   }
   return localNews(S.day);
 }
@@ -80,7 +80,7 @@ export function buyGroceries(id, channel) {
   spend(price, channel === 'market' ? 'Corner Market groceries' : 'Grocery delivery');
   if (channel === 'delivery') spendTime(35);
   S.life.meals += item.meals;
-  commit();
+  commit('groceries');
   return true;
 }
 
@@ -102,7 +102,7 @@ export function publishPost(kind) {
   life.feed = life.feed.slice(0, 8);
   spendTime(24);
   changeNeed(life, 'morale', 5);
-  commit();
+  commit('post');
   return gain;
 }
 
@@ -117,7 +117,7 @@ export function changeDecor(group, id) {
     life.ownedDecor.push(id);
   }
   life.decor[group] = id;
-  commit();
+  commit('decorate');
   return true;
 }
 
@@ -130,6 +130,6 @@ export function throwParty(guests) {
   life.lastParty = S.day;
   life.guests = guests.slice(0, 4);
   changeNeed(life, 'morale', 42);
-  commit();
+  commit('party');
   return true;
 }

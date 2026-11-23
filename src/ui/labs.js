@@ -8,6 +8,7 @@ import { newWorld, run, CHALLENGES } from '../data/terminal.js';
 import { quizRunner } from './panels.js';
 import { mulberry32 } from '../sim/rng.js';
 import * as G from '../game.js';
+import { sfx, gradeSound } from '../audio/sfx.js';
 
 function finish(job, score, detail = '') {
   if (job.practice) {
@@ -19,6 +20,7 @@ function finish(job, score, detail = '') {
     return;
   }
   const r = G.settleLab(job, score);
+  gradeSound(r.grade);
   renderHUD();
   const m = modal(h('div', { class: 'results' }, h('div', { class: 'grade g' + r.grade }, r.grade), h('div', { class: 'rcol' },
     h('p', {}, `Score: ${Math.round(score * 100)}%`), detail ? h('p', { class: 'muted' }, detail) : null,
@@ -74,6 +76,7 @@ function netlab(job) {
       }
       const insecure = sc.insecureCheck?.(vals);
       if (insecure) out.append(h('div', { class: 'warnbox' }, '⚠ ' + insecure));
+      sfx(allPass ? 'terminal_success' : 'answer_wrong');
       if (allPass) {
         const s = Math.max(0.4, 1 - (tries - 1) * 0.1 - (insecure ? 0.35 : 0));
         out.append(h('div', { class: 'good' }, `Solved! ${sc.lesson}`), h('button', { class: 'btn', onclick: () => { scores.push(s); idx++; idx < ids.length ? renderScenario() : (m.close(), finish(job, scores.reduce((a, b) => a + b, 0) / scores.length)); } }, idx + 1 < ids.length ? 'Next scenario ▸' : 'Finish ▸'));
@@ -146,7 +149,7 @@ function iam(job) {
     const fb = h('div', {});
     body.append(vbtns, rsel, h('div', { class: 'row end' }, h('button', { class: 'btn', onclick: () => {
       if (!verdict || reason === null) return toast('Choose a verdict and a reason.', 'info');
-      const vOk = verdict === p.answer, rOk = reason === p.reason;
+      const vOk = verdict === p.answer, rOk = reason === p.reason; sfx(vOk && rOk ? 'answer_right' : 'answer_wrong');
       pts += (vOk ? 0.6 : 0) + (rOk ? 0.4 : 0);
       fb.innerHTML = ''; fb.append(h('div', { class: vOk && rOk ? 'good' : 'bad' }, `${vOk ? '✔' : '✖'} ${p.answer}. ${p.reasons[p.reason]}`), h('button', { class: 'btn', onclick: () => { i++; render(); } }, 'Next ▸'));
     } }, 'Evaluate')), fb, h('button', { class: 'link', onclick: () => App.panels.codex('iam_eval') }, '📖 Policy evaluation logic'));
@@ -200,7 +203,7 @@ function recon(job) {
     const fb = h('div', {});
     body.append(grid, h('div', { class: 'row end' }, h('button', { class: 'btn', onclick: () => {
       const tp = [...sel].filter(x => t.weak.includes(x)).length, fp = [...sel].filter(x => !t.weak.includes(x)).length;
-      const s = Math.max(0, (tp - fp * 0.5) / t.weak.length); pts += Math.min(1, s);
+      const s = Math.max(0, (tp - fp * 0.5) / t.weak.length); pts += Math.min(1, s); sfx(s >= 1 ? 'answer_right' : 'answer_wrong');
       fb.innerHTML = ''; fb.append(h('div', { class: s >= 1 ? 'good' : 'bad' }, `Weakness: ${t.weak.map(w => VECTORS.find(v => v.id === w).name).join(' + ')}. ${t.why}`), h('button', { class: 'btn', onclick: () => { i++; render(); } }, 'Next ▸'));
     } }, 'Analyze')), fb);
   };
@@ -227,6 +230,7 @@ function terminal(job) {
       let all = true;
       for (const o of ch.objectives) { const ok = o.check(w); if (!o.passive) all &&= ok; objs.append(h('div', { class: 'obj ' + (ok ? 'ok' : '') }, (ok ? '☑ ' : '☐ ') + o.text)); }
       if (ch.objectives.some(o => o.passive && !o.check(w))) all = false;
+      if (all && !w.flags._doneSfx) { w.flags._doneSfx = true; sfx('terminal_success'); }
       if (all) {
         const s = Math.max(0.5, 1 - hintsUsed * 0.12);
         objs.append(h('div', { class: 'good' }, '✔ Challenge complete'), h('button', { class: 'btn', onclick: () => { scores.push(s); idx++; idx < ids.length ? start() : (m.close(), finish(job, scores.reduce((a, b) => a + b, 0) / scores.length)); } }, idx + 1 < ids.length ? 'Next challenge ▸' : 'Finish ▸'));
@@ -235,6 +239,7 @@ function terminal(job) {
       objs.append(h('button', { class: 'btn ghost small', onclick: () => { const hnt = ch.hints[Math.min(hintsUsed, ch.hints.length - 1)]; hintsUsed++; print('hint: ' + hnt, 'hint'); } }, `Hint (${hintsUsed}/${ch.hints.length})`));
     };
     input.addEventListener('keydown', e => {
+      if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') sfx('key_press', e.key === 'Enter' ? { vol: 0.3 } : {});
       if (e.key === 'Enter') {
         const line = input.value; input.value = ''; hist.push(line); hi = hist.length;
         print('$ ' + line, 'cmd');
