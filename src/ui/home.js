@@ -156,10 +156,9 @@ registerScreen('office', {
     const phone = actionButton('Ask a friend', () => openPhone(), { class: 'home-phone help-button' });
     phone.prepend(h('span', { html: icon('phone', 28) }));
     const decorate = actionButton('Decorate', openDecor, { class: 'btn ghost small home-decorate' });
-    const hint = h('span', { class: 'home-walk-hint desktop-input-hint' }, 'WASD / arrows to walk');
+    const hint = h('span', { class: 'home-walk-hint' }, h('span', { class: 'desktop-input-hint' }, 'WASD / arrows to walk'),
+      h('span', { class: 'touch-input-hint' }, 'Tap the floor to walk · tap an item to use it'));
     const objective = h('span', { class: 'home-objective', hidden: Boolean(S.jobsDone) }, 'Walk to your computer to start work');
-    const dpad = h('div', { class: 'home-dpad', role: 'group', 'aria-label': 'Walk controls' });
-    const padButtons = new Map();
     let selectedId;
     let walking = false;
     let distanceToStep = 0;
@@ -181,34 +180,44 @@ registerScreen('office', {
       if (walking || keys.size || touches.size) save();
       keys.clear();
       touches.clear();
-      updatePad();
+      walkTo = null;
       distanceToStep = 0;
     }
 
-    function updatePad() {
-      const held = new Set(touches.values());
-      for (const [direction, button] of padButtons) button.setAttribute('aria-pressed', String(held.has(direction)));
+    // Touch: hold a finger on the floor to walk toward it; tap to walk there.
+    // Tapping a station (bed, computer, …) walks over and uses it.
+    let walkTo = null, stuck = 0;
+    const canvas = App.world.renderer.domElement;
+    const aim = (event, final) => {
+      const view = App.world.homeView;
+      const point = view?.groundPoint(event.clientX, event.clientY);
+      if (!point) return;
+      const station = final ? view.stationNear(point.x, point.z) : null;
+      walkTo = station ? { x: station.x, z: station.z, station } : { x: point.x, z: point.z };
+      stuck = 0;
+    };
+    canvas.addEventListener('pointerdown', event => {
+      if (event.pointerType !== 'touch' || isPaused()) return;
+      event.preventDefault();
+      canvas.setPointerCapture(event.pointerId);
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY, t: performance.now() });
+      aim(event, false);
+    }, { signal });
+    canvas.addEventListener('pointermove', event => {
+      if (touches.has(event.pointerId) && !isPaused()) aim(event, false);
+    }, { signal });
+    for (const name of ['pointerup', 'pointercancel']) {
+      canvas.addEventListener(name, event => {
+        const start = touches.get(event.pointerId);
+        if (!touches.delete(event.pointerId)) return;
+        if (name === 'pointercancel') { walkTo = null; return; }
+        // A quick tap keeps walking to the spot (or station); a hold stops when lifted.
+        const tap = performance.now() - start.t < 350 && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 14;
+        if (tap) aim(event, true); else walkTo = null;
+      }, { signal });
     }
 
-    for (const [label, key, direction] of [
-      ['Walk up', '▲', 'KeyW'], ['Walk left', '◀', 'KeyA'],
-      ['Walk down', '▼', 'KeyS'], ['Walk right', '▶', 'KeyD'],
-    ]) {
-      const button = actionButton(key, null, { class: 'home-arrow', 'aria-label': label, 'aria-pressed': 'false' });
-      padButtons.set(direction, button);
-      button.addEventListener('pointerdown', event => {
-        if ((event.pointerType !== 'touch' && event.button !== 0) || isPaused()) return;
-        event.preventDefault();
-        button.setPointerCapture(event.pointerId);
-        touches.set(event.pointerId, direction);
-        updatePad();
-      }, { signal });
-      for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-        button.addEventListener(name, event => { if (touches.delete(event.pointerId)) updatePad(); }, { signal });
-      }
-      dpad.append(button);
-    }
-    root.append(controls.panel, h('div', { class: 'home-action-bar' }, prompt, objective, hint), dpad,
+    root.append(controls.panel, h('div', { class: 'home-action-bar' }, prompt, objective, hint),
       h('div', { class: 'home-utilities' }, decorate, phone));
 
     window.addEventListener('keydown', event => {
@@ -233,18 +242,37 @@ registerScreen('office', {
 
     App.world.homeTick = dt => {
       if (isPaused()) {
-        if (keys.size || touches.size) release();
+        if (keys.size || touches.size || walkTo) release();
         return;
       }
-      const pressed = new Set([...keys, ...touches.values()]);
+      const pressed = new Set(keys);
       const directions = [...pressed].map(key => MOVEMENT[key]);
       const axis = index => Number(directions.some(value => value[index] > 0)) - Number(directions.some(value => value[index] < 0));
-      if (!pressed.size && walking) save();
-      walking = pressed.size > 0;
       const view = App.world.homeView;
+      if (pressed.size) walkTo = null;
+      let horizontal = axis(0), vertical = axis(1);
+      if (walkTo) {
+        const arrived = walkTo.station ? view.nearest()?.id === walkTo.station.id && Math.hypot(view.position.x - walkTo.x, view.position.z - walkTo.z) < 0.7 : false;
+        const toward = arrived ? null : view.inputToward(walkTo.x, walkTo.z);
+        if (toward) { horizontal = toward.horizontal; vertical = toward.vertical; }
+        else {
+          const station = walkTo.station; walkTo = null;
+          if (station && !touches.size) { release(); interact(station); return; }
+        }
+      }
+      const moving = pressed.size > 0 || !!walkTo;
+      if (!moving && walking) save();
+      walking = moving;
       const { x, z } = view.position;
-      const nearby = view.update(axis(0), axis(1), dt);
+      const nearby = view.update(horizontal, vertical, dt);
       const distance = Math.hypot(view.position.x - x, view.position.z - z);
+      if (walkTo && distance < 0.002) {
+        // Walked into furniture: stop, or settle for "close enough" to a station.
+        if ((stuck += dt) > 0.3) {
+          const station = walkTo.station; walkTo = null;
+          if (station && view.nearest()?.id === station.id && !touches.size) { release(); interact(station); return; }
+        }
+      } else stuck = 0;
       if (distance > 0) {
         distanceToStep -= distance;
         if (distanceToStep <= 0) {

@@ -281,6 +281,36 @@ export class HomeView {
     return !this.obstacles.some(o => Math.abs(x - o.x) < o.w / 2 + RADIUS && Math.abs(z - o.z) < o.d / 2 + RADIUS);
   }
 
+  // Floor point under a screen position (for touch walking).
+  groundPoint(clientX, clientY) {
+    const world = this.world;
+    const r = world.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    world.camera.updateMatrixWorld();
+    const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, world.camera);
+    const hit = new THREE.Vector3();
+    return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit) ? hit : null;
+  }
+
+  // Screen-relative input (as update() expects) that walks toward a floor point.
+  inputToward(x, z) {
+    const wx = x - this.position.x, wz = z - this.position.z;
+    const distance = Math.hypot(wx, wz);
+    if (distance < 0.12) return null;
+    const yaw = this.world.yaw;
+    return { horizontal: (Math.cos(yaw) * wx - Math.sin(yaw) * wz) / distance,
+      vertical: (Math.sin(yaw) * wx + Math.cos(yaw) * wz) / distance, distance };
+  }
+
+  stationNear(x, z, within = 1.0) {
+    let best = null, distance = within;
+    for (const station of this.stations) {
+      const d = Math.hypot(x - station.x, z - station.z);
+      if (d < distance) { best = station; distance = d; }
+    }
+    return best;
+  }
+
   nearest() {
     let best = null;
     let distance = 1.16;

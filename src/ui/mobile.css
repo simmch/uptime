@@ -5,25 +5,17 @@ html.touch { -webkit-text-size-adjust: 100%; }
 html.touch body { overscroll-behavior: none; }
 html.touch .world-canvas { touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 html.touch button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-html.touch .drive-accelerator, html.touch .home-arrow {
+html.touch .drive-accelerator {
   touch-action: none;
   -webkit-touch-callout: none;
   user-select: none;
   -webkit-user-select: none;
 }
-html.touch .home-arrow, html.touch .home-interact, html.touch .drive-accelerator,
+html.touch .home-interact, html.touch .drive-accelerator,
 html.touch .modal button, html.touch .m-dock button, html.touch .m-camera button { min-height: 44px; }
 html.touch .home-interact kbd, html.touch .drive-accelerator kbd, html.touch .desktop-input-hint { display: none; }
 .touch-input-hint { display: none; }
 html.touch .touch-input-hint { display: inline; }
-html.touch .home-dpad {
-  position: absolute; left: 15px; bottom: 25px; display: grid;
-  grid-template: repeat(2, 44px) / repeat(3, 44px); gap: 4px;
-}
-html.touch .home-dpad .home-arrow { padding: 0; color: #f2decf; background: #2c263bf0; border: 1px solid #786378; }
-html.touch .home-dpad .home-arrow[aria-pressed="true"] { background: #72546a; }
-html.touch .home-arrow:first-child { grid-column: 2; }
-html.touch .home-arrow:nth-child(2) { grid-column: 1; }
 html.touch .drive-controls { bottom: calc(22px + env(safe-area-inset-bottom)); right: calc(18px + env(safe-area-inset-right)); }
 html.touch .drive-subtitle { bottom: calc(clamp(69px, 12%, 134px) + env(safe-area-inset-bottom)); }
 html.touch .rooftop-menu { margin-bottom: env(safe-area-inset-bottom); margin-right: env(safe-area-inset-right); }
@@ -100,9 +92,8 @@ html.phone body #nav {
   justify-content: flex-start;
 }
 html.phone .navbtn, html.phone .navbtn:hover { width: 44px; min-height: 44px; flex: none; padding: 2px 4px; }
-html.phone #screen.screen-office .home-dpad { bottom: calc(62px + env(safe-area-inset-bottom)); left: calc(9px + env(safe-area-inset-left)); }
 html.phone #screen.screen-office .home-utilities { bottom: calc(62px + env(safe-area-inset-bottom)); right: calc(9px + env(safe-area-inset-right)); }
-html.phone #screen.screen-office .home-action-bar { bottom: calc(167px + env(safe-area-inset-bottom)); }
+html.phone #screen.screen-office .home-action-bar { bottom: calc(150px + env(safe-area-inset-bottom)); }
 html.phone .home-status { z-index: 1; }
 html.phone .home-interact { max-width: calc(100vw - 24px); white-space: normal; }
 
