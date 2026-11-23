@@ -46,14 +46,21 @@ export const TITLES = [
   [26, 'Principal Engineer', 'principal'], [32, 'Distinguished Engineer', 'principal'],
 ];
 
-export function xpForLevel(l) { return l <= 1 ? 0 : Math.round(100 * Math.pow(l, 1.9) - 100); }
+// Early levels are cheap so a brand-new player can unlock load balancers, auto
+// scaling and the other basics within the first few jobs and Codex tests. The
+// discount fades out by level 12, where the original curve takes over.
+export function xpForLevel(l) {
+  if (l <= 1) return 0;
+  const discount = Math.min(1, 0.3 + 0.07 * (l - 2));
+  return Math.round((100 * Math.pow(l, 1.9) - 100) * discount);
+}
 
 export function newState(name = 'Chris') {
   return {
     v: 1, name, money: 1200, day: 1, xp: 0, level: 1, sp: 1, rep: 0,
     skills: [...STARTER_SKILLS], certs: [], chapter: 1, step: 0, stepSeen: -1,
     flags: {}, villain: false, ending: null,
-    jobsDone: 0, history: [], codexRead: [], domainXP: Object.fromEntries(DOMAIN_IDS.map(d => [d, 0])),
+    jobsDone: 0, history: [], codexRead: [], codexTests: {}, domainXP: Object.fromEntries(DOMAIN_IDS.map(d => [d, 0])),
     home: 'couch', gear: [], blueprints: [],
     board: [], boardDay: 0, boardRolls: 0, active: null,
     stats: { earned: 0, spent: 0, infra: 0, breaches: 0, incidents: 0, jobs: 0, failed: 0 },
@@ -66,6 +73,9 @@ export function newState(name = 'Chris') {
 export let S = null;
 export function setState(s) {
   s.life = restoreLife(s.life);
+  s.codexTests ||= {};
+  // Older saves were levelled on a steeper curve: apply any levels they're now owed.
+  while (s.xp >= xpForLevel(s.level + 1)) { s.level++; s.sp += 1 + (s.level % 5 === 0 ? 1 : 0); }
   const properties = s.life.legacy.properties;
   if (s.home !== 'couch' && HOMES.some(option => option.id === s.home) && !properties.includes(s.home)) properties.push(s.home);
   S = s;

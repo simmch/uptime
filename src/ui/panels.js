@@ -6,6 +6,7 @@ import { S, save, wipe, exportSave, importSave, skillState, learnSkill, CERTS, H
 import { SKILLS, SKILL } from '../data/skills.js';
 import { DOMAINS, DOMAIN_IDS } from '../data/domains.js';
 import { CODEX, codexEntry } from '../data/codex.js';
+import { codexQuiz } from '../data/codexquiz.js';
 import { COMPONENT, COMPONENTS } from '../data/components.js';
 import { drawQuestions } from '../data/quiz.js';
 import { mulberry32 } from '../sim/rng.js';
@@ -31,7 +32,7 @@ App.panels.skills = function (focusId) {
       tree.append(h('div', { class: 'tier' }, h('div', { class: 'tier-n' }, `T${t}`), ...list.map(s => {
         const st = skillState(s.id);
         const unlocks = COMPONENTS.filter(c => c.skill === s.id).map(c => c.name);
-        const why = { 'locked-level': `Requires level ${s.lvl}`, 'locked-req': 'Requires: ' + s.req.filter(r => !S.skills.includes(r)).map(r => SKILL[r].name).join(', '), 'no-sp': 'Not enough skill points', 'no-money': 'Not enough money', 'locked-story': '???' }[st];
+        const why = { 'locked-level': `Requires level ${s.lvl} — earn XP from Codex quick tests, practice quizzes and jobs`, 'locked-req': 'Requires: ' + s.req.filter(r => !S.skills.includes(r)).map(r => SKILL[r].name).join(', '), 'no-sp': 'Not enough skill points', 'no-money': 'Not enough money', 'locked-story': '???' }[st];
         return h('div', { class: `skill ${st} ${focusId === s.id ? 'focus' : ''}` },
           h('div', { class: 'sk-name' }, s.name),
           h('div', { class: 'sk-desc' }, st === 'locked-story' ? 'Unknown.' : s.desc),
@@ -61,7 +62,7 @@ App.panels.codex = function (openId) {
         const items = CODEX.filter(e => e.domain === d && (!q || (e.title + e.body + e.facts.join(' ')).toLowerCase().includes(q)));
         if (!items.length) continue;
         listItems.append(h('div', { class: 'cx-dom', style: { color: DOMAINS[d].color } }, DOMAINS[d].name));
-        for (const e of items) listItems.append(h('button', { class: 'cx-item ' + (e.id === current ? 'on' : '') + (S.codexRead.includes(e.id) ? ' read' : ''), onclick: () => { current = e.id; render(); } }, e.title));
+        for (const e of items) listItems.append(h('button', { class: 'cx-item ' + (e.id === current ? 'on' : '') + (S.codexRead.includes(e.id) ? ' read' : ''), onclick: () => { current = e.id; render(); } }, e.title, S.codexTests?.[e.id]?.perfect ? h('span', { class: 'cx-star', title: 'Quick test aced' }, ' ★') : null));
       }
     };
     renderList();
@@ -72,8 +73,9 @@ App.panels.codex = function (openId) {
       page.append(h('h2', { style: { color: DOMAINS[e.domain].color } }, comp ? h('span', { html: icon(comp.sprite, 40) }) : null, ' ', e.title), h('p', {}, e.body), h('ul', {}, ...e.facts.map(f => h('li', {}, f))));
       if (comp) page.append(h('div', { class: 'names' }, h('span', { style: { color: '#ff9900' } }, 'AWS: ' + comp.names.aws), h('span', { style: { color: '#3a96dd' } }, 'Azure: ' + comp.names.azure), h('span', { style: { color: '#34a853' } }, 'GCP: ' + comp.names.gcp)));
       page.append(h('div', { class: 'tip' }, '🎯 Exam / interview tip: ' + e.tip));
-      if (!S.codexRead.includes(e.id)) { S.codexRead.push(e.id); gainXP(8, [e.domain]); save(); }
-    } else page.append(h('p', { class: 'muted' }, `Pick an entry. ${S.codexRead.length}/${CODEX.length} read. Each new entry gives a little XP.`));
+      if (!S.codexRead.includes(e.id)) { S.codexRead.push(e.id); gainXP(8, [e.domain]); save(); renderHUD(); }
+      if (codexQuiz(e.id)) page.append(codexTest(e, () => renderList()));
+    } else page.append(h('p', { class: 'muted' }, `Pick an entry. ${S.codexRead.length}/${CODEX.length} read. Each new entry gives a little XP, and every entry ends with a quick 3-question test worth more.`));
     body.append(list, page);
   };
   render();
@@ -106,6 +108,77 @@ function takeExam(id) {
     else toast(`Failed ${c.name} (${Math.round(score * 100)}%). Study the Codex and retry.`, 'bad', 6000);
     save(); renderHUD(); App.world.buildOffice(S); runStory();
   });
+}
+
+// Quick 3-question test at the bottom of a Codex page.
+// First time each question is answered correctly: 12 XP. Acing it the first time: +10.
+// After that, a practice retake pays 3 XP per correct answer once per in-game day.
+const CODEX_XP = 12, CODEX_PERFECT = 10, CODEX_PRACTICE = 3;
+function codexTest(entry, onChange) {
+  const qs = codexQuiz(entry.id);
+  S.codexTests ||= {};
+  const box = h('div', { class: 'cx-test' });
+  const show = (...kids) => box.replaceChildren(...kids.filter(k => k != null && k !== false));
+  const rec = () => (S.codexTests[entry.id] ||= { got: [], perfect: false, best: 0, day: 0 });
+  const potential = () => {
+    const r = S.codexTests[entry.id];
+    const fresh = qs.length - (r?.got.length || 0);
+    if (fresh > 0 || !r?.perfect) return `Up to ${fresh * CODEX_XP + (r?.perfect ? 0 : CODEX_PERFECT)} XP`;
+    return r.day === S.day ? 'Practice XP already earned today' : `Practice: ${CODEX_PRACTICE} XP per correct answer today`;
+  };
+  const intro = () => {
+    const r = S.codexTests[entry.id];
+    show(
+      h('div', { class: 'cx-test-head' }, h('b', {}, 'Quick test'), h('span', { class: 'muted small' }, ` · ${qs.length} questions from this page · ${potential()}`)),
+      r ? h('div', { class: 'muted small' }, `Best: ${r.best}/${qs.length}${r.perfect ? ' ★' : ''}`) : null,
+      h('button', { class: 'btn small', onclick: () => run() }, r ? 'Retake test' : 'Take the quick test'));
+  };
+  const shuffle = list => { const a = list.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const run = () => {
+    let i = 0;
+    const right = [];
+    const order = shuffle(qs.map((_, k) => k));
+    const ask = () => {
+      if (i >= order.length) return finish(right);
+      const qi = order[i], q = qs[qi];
+      const opts = h('div', { class: 'opts' });
+      let answered = false;
+      for (const k of shuffle(q.a.map((_, n) => n))) opts.append(h('button', { class: 'opt', 'data-k': k, onclick: ev => {
+        if (answered) return; answered = true;
+        const ok = k === q.c; if (ok) right.push(qi);
+        sfx(ok ? 'answer_right' : 'answer_wrong');
+        ev.currentTarget.classList.add(ok ? 'right' : 'wrong');
+        opts.querySelector(`[data-k="${q.c}"]`)?.classList.add('right');
+        box.append(h('div', { class: 'explain ' + (ok ? 'good' : 'bad') }, (ok ? '✔ Correct. ' : '✖ ') + q.ex),
+          h('div', { class: 'row end' }, h('button', { class: 'btn small', onclick: () => { i++; ask(); } }, i + 1 < order.length ? 'Next ▸' : 'See score ▸')));
+      } }, q.a[k]));
+      show(h('div', { class: 'muted small' }, `Quick test · question ${i + 1} of ${order.length}`), h('h3', {}, q.q), opts);
+    };
+    ask();
+  };
+  const finish = right => {
+    const r = rec();
+    const fresh = right.filter(k => !r.got.includes(k));
+    let xp = fresh.length * CODEX_XP;
+    const perfect = right.length === qs.length;
+    let note = '';
+    if (perfect && !r.perfect) { xp += CODEX_PERFECT; note = ` (includes +${CODEX_PERFECT} for a perfect score)`; }
+    if (!xp && right.length && r.day !== S.day) { xp = right.length * CODEX_PRACTICE; r.day = S.day; note = ' practice XP'; }
+    if (xp) r.day = S.day;
+    r.got.push(...fresh); r.perfect ||= perfect; r.best = Math.max(r.best, right.length);
+    let ups = [];
+    if (xp) { const got = gainXP(xp, [entry.domain]); ups = got.ups; xp = got.amt; }
+    save(); renderHUD();
+    if (xp) toast(`+${xp} XP · ${entry.title} quick test`, 'good');
+    show(
+      h('div', { class: 'cx-test-head' }, h('b', {}, `Score: ${right.length}/${qs.length}`), perfect ? h('span', { class: 'cx-star' }, ' ★') : null),
+      h('p', {}, xp ? `+${xp} XP${note}.` : right.length ? 'No XP this time: you have already earned it today. Come back tomorrow, or study a new entry.' : 'No points this time. Reread the page above and try again — nothing is lost.'),
+      ups.length ? h('p', { class: 'good' }, `Level up! You're now level ${S.level}.`) : null,
+      h('div', { class: 'row gap' }, h('button', { class: 'btn small', onclick: () => run() }, 'Retake'), h('button', { class: 'btn ghost small', onclick: () => intro() }, 'Done')));
+    onChange?.();
+  };
+  intro();
+  return box;
 }
 
 export function quizRunner(qs, title, done) {

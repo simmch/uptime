@@ -110,7 +110,7 @@ html.phone #modals {
   bottom: auto;
   height: var(--m-viewport-height, 100dvh);
 }
-html.phone .modal-back { place-items: stretch; }
+html.phone .modal-back { place-items: stretch; grid-template: minmax(0, 100%) / minmax(0, 100%); }
 html.phone .modal, html.phone .modal.wide {
   width: 100vw;
   max-height: 100%;
