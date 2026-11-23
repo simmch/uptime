@@ -1,0 +1,34 @@
+import { createSim, step, results, TICKS } from '../src/sim/sim.js';
+import { review, estimate } from '../src/sim/review.js';
+import { toTerraform } from '../src/sim/terraform.js';
+import { COMPONENT, defaultConfig } from '../src/data/components.js';
+let uid = 0;
+const N = (id, region, az, cfg = {}) => ({ uid: 'n' + (++uid), id, region, az, cfg: { ...defaultConfig(COMPONENT[id]), ...cfg } });
+function run(name, design, job, skills = []) {
+  const sim = createSim(JSON.parse(JSON.stringify(design)), job, { skills });
+  while (!sim.done) step(sim);
+  const r = results(sim);
+  console.log(name.padEnd(34), 'avail', r.availability.toFixed(3), 'win', r.windowAvail.toFixed(1), 'p95', Math.round(r.p95), 'cost $' + r.cost.toFixed(0), 'breach', r.breaches.length, 'rto', r.rto, 'rpo', r.rpo);
+  return { sim, r };
+}
+const bakery = { seed: 7, title: 'Bakery', client: { name: "Rosa's Bakery" }, req: { rps: 20, peak: 2, static: 0.6, read: 0.9, availability: 99, latency: 400, days: 30, geo: { NA: 1 }, threat: 0, tier: 0, randomIncidents: 0 } };
+const d1 = { regions: ['us-east-1'], nodes: [N('vpc', 'us-east-1'), N('ec2', 'us-east-1', 0), N('rds', 'us-east-1', 0)] };
+run('bakery single ec2', d1, bakery);
+const big = { seed: 3, title: 'Launch', req: { rps: 2000, peak: 4, static: 0.4, read: 0.85, async: 0.3, availability: 99.9, latency: 250, days: 30, geo: { NA: 0.7, EU: 0.3 }, threat: 1, tier: 1, incidents: [{ type: 'az_outage', at: 0.4, dur: 0.15 }] } };
+const d2 = { regions: ['us-east-1'], nodes: [N('vpc', 'us-east-1'), N('alb', 'us-east-1'), N('asg', 'us-east-1', null, { size: 'xlarge', min: 2, max: 20 }), N('rds', 'us-east-1', 0, { size: 'large' }), N('cloudwatch')] };
+run('launch asg single-az rds', d2, big);
+const d3 = JSON.parse(JSON.stringify(d2)); d3.nodes.find(n => n.id === 'rds').cfg.multiAZ = true; d3.nodes.find(n => n.id === 'rds').cfg.size = 'xlarge';
+d3.nodes.push(N('cloudfront'), N('elasticache', 'us-east-1', null, { nodes: 2 }), N('sqs', 'us-east-1'), N('s3', 'us-east-1'), N('waf'));
+run('launch asg multiaz + cdn+cache+sqs', d3, big, ['cost_basics']);
+const d4 = { regions: ['us-east-1'], nodes: [N('vpc', 'us-east-1'), N('alb', 'us-east-1'), N('eks', 'us-east-1', null, { autoscaler: 'karpenter', nodesMax: 40 }), N('aurora', 'us-east-1'), N('cloudwatch'), N('cloudfront'), N('s3','us-east-1')] };
+run('launch eks+aurora', d4, big);
+const dr = { seed: 5, req: { ...big.req, incidents: [{ type: 'region_outage', at: 0.3 }], threat: 0, randomIncidents: 0 } };
+const d5 = { regions: ['us-east-1', 'us-west-2'], nodes: [N('route53', null, null, { policy: 'failover', health: true }), N('vpc', 'us-east-1'), N('alb', 'us-east-1'), N('asg', 'us-east-1', null, { size: 'xlarge', min: 3, max: 20 }), N('aurora', 'us-east-1', null, { global: true }), N('vpc', 'us-west-2'), N('alb', 'us-west-2'), N('asg', 'us-west-2', null, { size: 'xlarge', min: 1, max: 20 }), N('cloudwatch')] };
+run('dr warm standby aurora global', d5, dr);
+const d6 = JSON.parse(JSON.stringify(d5)); d6.nodes[0].cfg = { policy: 'simple', health: false };
+run('dr no health checks', d6, dr);
+const lam = { seed: 9, req: { rps: 50, peak: 10, static: 0, read: 0.7, availability: 99.9, latency: 600, days: 30, geo: { NA: 1 }, threat: 0, tier: 0, randomIncidents: 0 } };
+run('lambda+dynamo spiky', { regions: ['us-east-1'], nodes: [N('vpc', 'us-east-1'), N('apigw', 'us-east-1', null, { type: 'http' }), N('lambda', 'us-east-1'), N('dynamodb', 'us-east-1')] }, lam);
+console.log(review(d2, big, ['ha_multiaz', 'cost_basics', 'cost_rightsize']).items.map(i => i.level + ': ' + i.text).join('\n'));
+console.log(estimate(d3, big, []));
+console.log(toTerraform(d5, { title: 'DR', client: { name: 'Acme' } }).slice(0, 800));

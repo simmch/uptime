@@ -1,0 +1,514 @@
+{
+"server": [
+"server rack",
+1
+],
+"vm": [
+"computer tower",
+0
+],
+"laptop": [
+"laptop",
+1
+],
+"terminal": [
+"computer terminal",
+1
+],
+"lambda": [
+"lightning bolt",
+3
+],
+"container": [
+"shipping container",
+0
+],
+"k8s": [
+"ship's wheel",
+0
+],
+"pod": [
+"whale",
+3
+],
+"lb": [
+"traffic signal",
+4
+],
+"asg": [
+"gear cog",
+2
+],
+"db": [
+"data crystal",
+4
+],
+"nosql": [
+"chest of drawers",
+6
+],
+"cache": [
+"data chip",
+0
+],
+"queue": [
+"mailbox",
+0
+],
+"stream": [
+"conveyor belt section",
+2
+],
+"bucket": [
+"bucket",
+1
+],
+"disk": [
+"hard drive",
+0
+],
+"archive": [
+"ice cube",
+3
+],
+"cdn": [
+"satellite dish",
+0
+],
+"dns": [
+"direction signpost",
+2
+],
+"waf": [
+"shield",
+2
+],
+"ddos": [
+"castle wall segment",
+3
+],
+"iam": [
+"skeleton key",
+1
+],
+"kms": [
+"padlock",
+2
+],
+"secrets": [
+"combination safe",
+1
+],
+"vpc": [
+"picket fence",
+2
+],
+"nat": [
+"castle gate",
+3
+],
+"monitor": [
+"magnifying glass",
+2
+],
+"logs": [
+"scroll",
+3
+],
+"terraform": [
+"blueprint",
+3
+],
+"git": [
+"oak tree",
+4
+],
+"cicd": [
+"gearbox",
+2
+],
+"globe": [
+"globe",
+1
+],
+"building": [
+"storefront",
+1
+],
+"user": [
+"person",
+1
+],
+"hacker": [
+"hooded figure",
+0
+],
+"bot": [
+"zombie",
+1
+],
+"virus": [
+"disease germ symbol",
+1
+],
+"bug": [
+"beetle",
+3
+],
+"coin": [
+"coin",
+5
+],
+"coins": [
+"stack of gold coins",
+0
+],
+"star": [
+"star",
+1
+],
+"house": [
+"tiny house",
+1
+],
+"shop": [
+"shopkeeper",
+4
+],
+"skyscraper": [
+"water tower",
+6
+],
+"factory": [
+"gatehouse",
+3
+],
+"castle": [
+"castle",
+3
+],
+"robot": [
+"humanoid robot",
+1
+],
+"skull": [
+"skull icon",
+1
+],
+"fire": [
+"fire slime",
+0
+],
+"bomb": [
+"time bomb",
+0
+],
+"envelope": [
+"envelope letter",
+2
+],
+"trophy": [
+"trophy cup",
+4
+],
+"heart": [
+"heart icon",
+1
+],
+"cloud": [
+"cloud icon",
+1
+],
+"crown": [
+"crown",
+4
+],
+"megaphone": [
+"megaphone",
+1
+],
+"antenna": [
+"signal beacon",
+4
+],
+"player": [
+"office worker",
+1
+],
+"mentor": [
+"old woman",
+1
+],
+"book": [
+"book",
+1
+],
+"map": [
+"world map",
+1
+],
+"potion": [
+"potion bottle",
+1
+],
+"chest": [
+"treasure chest",
+1
+],
+"wrench": [
+"adjustable wrench",
+1
+],
+"clock": [
+"alarm clock",
+1
+],
+"eye": [
+"floating eye",
+2
+],
+"flag": [
+"flag on pole",
+1
+],
+"lightbulb": [
+"light bulb",
+3
+],
+"battery": [
+"battery",
+3
+],
+"phone": [
+"smartphone",
+5
+],
+"truck": [
+"food truck",
+2
+],
+"cake": [
+"birthday cake",
+4
+],
+"bank": [
+"piggy bank",
+2
+],
+"hospital": [
+"hospital bed",
+3
+],
+"gamepad": [
+"game controller",
+3
+],
+"rocket": [
+"rocket ship",
+1
+],
+"mask": [
+"skull mask",
+1
+],
+"suit": [
+"businessman",
+1
+],
+"door": [
+"vault door",
+0
+],
+"tower": [
+"watchtower",
+1
+],
+"router": [
+"wireless router",
+2
+],
+"radio": [
+"radio",
+1
+],
+"satellite": [
+"satellite",
+2
+],
+"box": [
+"cardboard box",
+1
+],
+"tv": [
+"retro tv set",
+1
+],
+"crate": [
+"shipping crate",
+2
+],
+"pipe": [
+"four-way pipe junction",
+2
+],
+"plug": [
+"electric plug",
+1
+],
+"cable": [
+"usb cable",
+1
+],
+"stopwatch": [
+"stopwatch",
+2
+],
+"telescope": [
+"telescope",
+1
+],
+"ninja": [
+"ninja",
+1
+],
+"thief": [
+"thief",
+1
+],
+"knight": [
+"knight",
+1
+],
+"wizard": [
+"wizard",
+2
+],
+"spider": [
+"spider web",
+3
+],
+"slime": [
+"slime",
+1
+],
+"ghost": [
+"ghost",
+3
+],
+"portal": [
+"portal swirl marker",
+3
+],
+"lighthouse": [
+"lighthouse",
+1
+],
+"bridge": [
+"two-way arrow sign",
+4
+],
+"warning": [
+"warning sign",
+1
+],
+"trash": [
+"trash can",
+1
+],
+"lockbox": [
+"lockbox",
+2
+],
+"flashdrive": [
+"flash drive",
+2
+],
+"notebook": [
+"notebook",
+1
+],
+"officechair": [
+"office chair",
+4
+],
+"coffee": [
+"cup of coffee",
+1
+],
+"plant": [
+"snake plant",
+3
+],
+"vending": [
+"vending machine",
+1
+],
+"notice": [
+"notice board",
+1
+],
+"boss": [
+"king",
+2
+],
+"police": [
+"police officer",
+1
+],
+"oldman": [
+"old man",
+2
+],
+"robotsoldier": [
+"robot soldier",
+1
+],
+"workerbot": [
+"worker robot",
+1
+],
+"chain": [
+"chain",
+1
+],
+"warehouse": [
+"stack of crates",
+1
+],
+"cart": [
+"shopping cart",
+2
+],
+"trucks": [
+"semi truck",
+4
+],
+"ship": [
+"cargo ship",
+3
+],
+"planet": [
+"ringed planet",
+1
+],
+"sun": [
+"sun",
+1
+],
+"banknote": [
+"stack of banknotes",
+1
+],
+"wallet": [
+"wallet",
+2
+],
+"calendar": [
+"wall calendar",
+1
+],
+"medal": [
+"star-shaped medal",
+1
+]
+}

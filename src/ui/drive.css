@@ -1,0 +1,145 @@
+.drive-overlay {
+  --drive-paper: #ffe8cb;
+  --drive-amber: #fbc18a;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  user-select: none;
+  color: var(--drive-paper);
+}
+
+.drive-cockpit, .drive-fade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.drive-fade {
+  z-index: 2;
+  background: #0d1018;
+  opacity: 0;
+}
+
+.drive-credits {
+  position: absolute;
+  top: 13%;
+  bottom: 34%;
+  left: clamp(24px, 7vw, 110px);
+  width: min(30vw, 340px);
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(transparent, #000 13%, #000 83%, transparent);
+}
+
+.drive-roll {
+  display: grid;
+  gap: clamp(27px, 5.8vh, 62px);
+}
+
+.drive-trip {
+  position: absolute;
+  left: clamp(24px, 7vw, 110px);
+  top: 15%;
+  font: clamp(9px, 1.2vw, 17px)/1.5 var(--px);
+  text-shadow: 1px 2px #1b1423;
+}
+
+.drive-credit {
+  display: grid;
+  gap: 11px;
+  text-shadow: 0 2px 2px #14101a, 0 1px 15px #110a17, 1px 0 #271c29, -1px 0 #271c29;
+}
+
+.drive-credit span {
+  color: var(--drive-amber);
+  font-family: var(--px);
+  font-size: clamp(7px, 0.8vw, 12px);
+  line-height: 1.55;
+  text-transform: uppercase;
+}
+
+.drive-credit strong {
+  font-family: var(--body);
+  font-size: clamp(23px, 3.05vw, 49px);
+  line-height: 0.87;
+  font-weight: normal;
+}
+
+.drive-logo strong {
+  font-family: var(--px);
+  font-size: clamp(17px, 3.15vw, 48px);
+  letter-spacing: -0.08em;
+  line-height: 1.1;
+}
+
+.drive-subtitle {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(69px, 12%, 134px);
+  width: max-content;
+  max-width: min(78%, 740px);
+  margin: 0;
+  padding: 9px 16px;
+  transform: translateX(-50%);
+  background: #12111be8;
+  border-bottom: 2px solid #a07666;
+  color: #fff2df;
+  text-align: center;
+  font-size: clamp(20px, 2.15vw, 31px);
+  line-height: 1;
+}
+
+.drive-accelerator {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 12px 6px 7px;
+  font-size: clamp(18px, 2vw, 24px);
+  background: #171622e8;
+  color: var(--drive-paper);
+  border: 1px solid #826772;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drive-accelerator:focus-visible {
+  outline: 2px solid var(--drive-amber);
+  outline-offset: 4px;
+}
+
+.drive-controls {
+  position: absolute;
+  bottom: clamp(15px, 4.1vh, 47px);
+  right: clamp(22px, 4.5vw, 74px);
+}
+
+.drive-accelerator kbd {
+  display: grid;
+  min-width: 31px;
+  min-height: 30px;
+  place-items: center;
+  background: #342939;
+  box-shadow: inset 0 -2px #110d18;
+  color: var(--drive-amber);
+  font: 11px var(--px);
+}
+
+.drive-accelerator.on kbd {
+  background: #eaae7d;
+  color: #1a1420;
+}
+
+@media (max-width: 660px) {
+  .drive-credits {
+    left: 8%;
+    width: 39%;
+  }
+
+  .drive-subtitle {
+    max-width: 86%;
+    padding: 7px 11px;
+  }
+}

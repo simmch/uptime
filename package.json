@@ -1,0 +1,22 @@
+{
+  "name": "uptime-cloud-architect-sim",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "UPTIME — a pixel-art cloud architecture simulator built with three.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "sprites": "python3 scripts/fetch_sprites.py download && python3 scripts/fetch_sprites.py build",
+    "test:sim": "node test/sim_test.mjs"
+  },
+  "dependencies": {
+    "@fontsource/press-start-2p": "^5.1.0",
+    "@fontsource/vt323": "^5.1.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

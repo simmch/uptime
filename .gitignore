@@ -1,0 +1,5 @@
+node_modules
+dist
+scripts/.parquet
+scripts/.sprite_cache
+scripts/contact_sheet.png
