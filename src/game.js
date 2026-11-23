@@ -56,40 +56,40 @@ export function gradeBuild(job, design, res) {
   if (!availOK) {
     const nines = Math.log10(Math.max(1e-6, 100 - res.availability) / Math.max(1e-6, 100 - target));
     const pen = Math.min(55, 15 + nines * 30);
-    score -= pen; lines.push({ ok: false, text: `Availability ${res.availability.toFixed(3)}% (target ${target}%)`, pen });
+    score -= pen; lines.push({ key: 'availability', ok: false, text: `Availability ${res.availability.toFixed(3)}% (target ${target}%)`, pen });
   } else lines.push({ ok: true, text: `Availability ${res.availability.toFixed(3)}% (target ${target}%)` });
   // latency
-  if (res.p95 > req.latency) { const pen = Math.min(25, (res.p95 / req.latency - 1) * 40 + 5); score -= pen; lines.push({ ok: false, text: `p95 latency ${Math.round(res.p95)} ms (target < ${req.latency} ms)`, pen }); }
+  if (res.p95 > req.latency) { const pen = Math.min(25, (res.p95 / req.latency - 1) * 40 + 5); score -= pen; lines.push({ key: 'latency', ok: false, text: `p95 latency ${Math.round(res.p95)} ms (target < ${req.latency} ms)`, pen }); }
   else lines.push({ ok: true, text: `p95 latency ${Math.round(res.p95)} ms (target < ${req.latency} ms)` });
   // RTO/RPO
   const regionEvent = (req.incidents || []).some(i => ['region_outage', 'provider_ban', 'legal_takedown'].includes(i.type));
   if (req.rto && regionEvent) {
     const ok = res.rto != null && res.rto <= req.rto;
-    if (!ok) { score -= 15; lines.push({ ok: false, text: `RTO ${res.rto == null ? 'never recovered' : res.rto + ' min'} (target ≤ ${req.rto} min)`, pen: 15 }); }
+    if (!ok) { score -= 15; lines.push({ key: 'rto', ok: false, text: `RTO ${res.rto == null ? 'never recovered' : res.rto + ' min'} (target ≤ ${req.rto} min)`, pen: 15 }); }
     else lines.push({ ok: true, text: `RTO ${res.rto} min (target ≤ ${req.rto} min)` });
   }
   if (req.rpo && regionEvent) {
     const ok = res.rpo <= req.rpo;
     const rpoTxt = res.rpo >= 1e8 ? 'all data in lost region' : res.rpo < 1 ? '< 1 min' : Math.round(res.rpo) + ' min';
-    if (!ok) { score -= 15; lines.push({ ok: false, text: `RPO ${rpoTxt} (target ≤ ${req.rpo} min)`, pen: 15 }); }
+    if (!ok) { score -= 15; lines.push({ key: 'rpo', ok: false, text: `RPO ${rpoTxt} (target ≤ ${req.rpo} min)`, pen: 15 }); }
     else lines.push({ ok: true, text: `RPO ${rpoTxt} (target ≤ ${req.rpo} min)` });
   }
   // breaches
-  for (const b of res.breaches) { const pen = 25 + 20 * b.severity; score -= pen; lines.push({ ok: false, text: `Breach: ${b.text}`, pen }); }
+  for (const b of res.breaches) { const pen = 25 + 20 * b.severity; score -= pen; lines.push({ key: 'breach', ok: false, text: `Breach: ${b.text}`, pen }); }
   // compliance
   const missing = (req.compliance || []).filter(c => COMPLIANCE[c] && !COMPLIANCE[c].check(ar));
-  for (const c of missing) { score -= 10; lines.push({ ok: false, text: `Compliance missing: ${COMPLIANCE[c].label}`, pen: 10 }); }
-  if ((req.regionsMin || 1) > ar.regionsUsed.length) { score -= 20; lines.push({ ok: false, text: `Required ${req.regionsMin}+ regions, used ${ar.regionsUsed.length}`, pen: 20 }); }
+  for (const c of missing) { score -= 10; lines.push({ key: 'compliance', ok: false, text: `Compliance missing: ${COMPLIANCE[c].label}`, pen: 10 }); }
+  if ((req.regionsMin || 1) > ar.regionsUsed.length) { score -= 20; lines.push({ key: 'regions', ok: false, text: `Required ${req.regionsMin || 1}+ region${(req.regionsMin || 1) > 1 ? 's' : ''} with resources, used ${ar.regionsUsed.length}`, pen: 20 }); }
   // cost
   if (job.budget && !signal) {
     const ratio = res.cost / job.budget;
     const w = cost ? 70 : 40;
-    if (ratio > 1) { const pen = Math.min(w, (ratio - 1) * w + (cost ? 15 : 3)); score -= pen; lines.push({ ok: false, text: `Infra cost ${fmt(res.cost)} vs budget ${fmt(job.budget)}`, pen }); }
+    if (ratio > 1) { const pen = Math.min(w, (ratio - 1) * w + (cost ? 15 : 3)); score -= pen; lines.push({ key: 'cost', ok: false, text: `Infra cost ${fmt(res.cost)} vs budget ${fmt(job.budget)}`, pen }); }
     else { if (ratio < 0.7) score += 5; lines.push({ ok: true, text: `Infra cost ${fmt(res.cost)} within budget ${fmt(job.budget)}` }); }
   }
-  if (res.suspended) { score = 0; lines.push({ ok: false, text: 'Account suspended for non-payment — the service went dark.', pen: 100 }); }
+  if (res.suspended) { score = 0; lines.push({ key: 'suspended', ok: false, text: 'Account suspended for non-payment — the service went dark.', pen: 100 }); }
   let grade = score >= 95 ? 'S' : score >= 85 ? 'A' : score >= 70 ? 'B' : score >= 55 ? 'C' : 'F';
-  if ((job.regulated || job.req.regulated) && (missing.length || res.breaches.length) && grade !== 'F') { grade = 'F'; lines.push({ ok: false, text: 'Regulated client: compliance failures or breaches void the contract.' }); }
+  if ((job.regulated || job.req.regulated) && (missing.length || res.breaches.length) && grade !== 'F') { grade = 'F'; lines.push({ key: 'regulated', ok: false, text: 'Regulated client: compliance failures or breaches void the contract.' }); }
   return { score: Math.max(0, Math.round(score)), grade, lines, missing };
 }
 const fmt = n => '$' + Math.round(n).toLocaleString();
@@ -200,6 +200,19 @@ export function startOfJob(job) {
   job.upfront = job.mode === 'signal' ? 0 : Math.round((job.pay || 0) * 0.3);
   if (job.upfront) earn(job.upfront, `Upfront: ${job.title}`);
   S.active = { id: job.id };
+  save();
+}
+
+// Walk away from a deployed contract: hand back the upfront and take the hit.
+export function abandonJob(job) {
+  const upfront = S.active?.upfront ?? job.upfront ?? 0;
+  if (upfront) spend(upfront, `Refund: ${job.title}`);
+  if (!S.villain) S.rep = Math.max(0, S.rep - 3);
+  S.stats.failed++;
+  S.history.unshift({ title: job.title, grade: 'F', day: S.day, story: !!job.story, abandoned: true });
+  S.history = S.history.slice(0, 40);
+  if (!job.story) S.board = S.board.filter(j => j.id !== job.id);
+  S.active = null;
   save();
 }
 

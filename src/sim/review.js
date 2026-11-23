@@ -97,7 +97,7 @@ export function review(design, job, skills) {
     const def = COMPLIANCE[c];
     if (def && !def.check(ar)) E(`Compliance: ${def.label} — ${def.fix}`, def.codex);
   }
-  if ((req.regionsMin || 1) > ar.regionsUsed.length) E(`Client requires ${req.regionsMin}+ regions.`, 'dr');
+  if ((req.regionsMin || 1) > ar.regionsUsed.length) E(`Client requires ${req.regionsMin || 1}+ region${(req.regionsMin || 1) > 1 ? "s" : ""} with resources.`, "dr");
 
   // capacity estimate (right-sizing skill)
   let est = null;

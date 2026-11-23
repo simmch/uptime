@@ -23,6 +23,11 @@ function compUnlocked(c) { return !c.skill || has(c.skill); }
 // ═════════════ BUILD ═════════════
 registerScreen('build', {
   enter(root, job) {
+    const busy = S.active?.deployed && S.active.id !== job.id && S.active.job;
+    if (busy) {
+      toast(`Finish or abandon "${S.active.job.title}" first. It's still deployed.`, 'warn');
+      return void queueMicrotask(() => show('build', S.active.job));
+    }
     this.root = root; this.job = job;
     if (S.active?.design && S.active.id === job.id) this.design = S.active.design;
     else if (job.presetDesign) this.design = JSON.parse(JSON.stringify(job.presetDesign));
@@ -30,7 +35,8 @@ registerScreen('build', {
       const geo = Object.entries(job.req.geo || { NA: 1 }).sort((a, b) => b[1] - a[1])[0][0];
       this.design = { regions: [job.req.compliance?.includes('residencyEU') ? 'eu-west-1' : PRIMARY[geo]], nodes: [] };
     }
-    S.active = { id: job.id, job, design: this.design }; save();
+    const prior = S.active?.id === job.id ? S.active : {};
+    S.active = { ...prior, id: job.id, job, design: this.design }; save();
     this.selected = null; this.placing = null; this.tab = 'contract';
     App.world.buildArch(this.design, { job });
     this.unpick = (this.onPick ||= hit => this.pick(hit));
@@ -143,6 +149,8 @@ registerScreen('build', {
     const top = h('div', { class: 'build-top panel' },
       h('button', { class: 'btn ghost small', onclick: async () => { if (await confirmBox('Leave this contract? Your design is kept and you can come back from the job board.', { ok: 'Leave' })) { show('office'); } } }, '◂ Back'),
       h('div', { class: 'bt-title' }, job.title),
+      S.active?.deployed ? h('span', { class: 'attempts muted small' }, `Attempt ${(S.active.attempts || 0) + 1} of ${MAX_ATTEMPTS}`) : null,
+      S.active?.deployed ? h('button', { class: 'btn ghost small danger', onclick: () => this.abandon() }, 'Abandon') : null,
       h('div', { class: 'regions' }, ...this.design.regions.map((r, i) => h('span', { class: 'rchip', style: { borderColor: PROVIDERS[REGION[r].provider].color } }, i === 0 ? '★ ' : '', r, h('button', { class: 'x', onclick: () => this.removeRegion(r) }, '×'))), regSel),
       h('div', { class: 'grow' }),
       h('button', { class: 'btn help-button small', onclick: () => {
@@ -263,25 +271,64 @@ registerScreen('build', {
     const m = modal(h('div', {}, h('p', { class: 'muted' }, 'Terraform modules: save a design and reuse it on later contracts.'), list, h('div', { class: 'row gap' }, name, h('button', { class: 'btn', onclick: () => { S.blueprints.push({ name: name.value || 'module-' + (S.blueprints.length + 1), design: JSON.parse(JSON.stringify(this.design)) }); save(); render(); } }, 'Save current'))), { title: 'Modules' });
   },
 
+  async abandon() {
+    const upfront = S.active?.upfront || 0;
+    const ok = await confirmBox(`Walk away from <b>${this.job.title}</b>?<br>You refund the ${money(upfront)} upfront and lose 3 reputation. ${this.job.story ? 'Story contracts come back on the board.' : 'The client finds someone else.'}`, { ok: 'Abandon', title: 'Abandon contract?' });
+    if (!ok) return;
+    G.abandonJob(this.job);
+    renderHUD();
+    show('office');
+  },
+
   async deploy() {
     const r = review(this.design, this.job, S.skills);
     const tfMult = this.design.nodes.some(n => n.id === 'terraform') ? 0.6 : 1;
     const setup = Math.round(this.design.nodes.reduce((a, n) => a + (COMPONENT[n.id].setup || 0) * (n.id === 'ec2' ? n.cfg.count : 1), 0) * tfMult * (1 + (this.job.req.tier || 0) * 1.5));
     const errs = r.items.filter(i => i.level === 'error');
-    const upfront = this.job.mode === 'signal' ? 0 : Math.round(this.job.pay * 0.3);
-    const msg = `${errs.length ? `<p class="bad">⚠ ${errs.length} blocking issue(s):<br>${errs.map(e => '• ' + e.text).join('<br>')}</p>` : ''}
-      <p>Setup labor: <b>${money(setup)}</b>${tfMult < 1 ? ' (Terraform −40%)' : ''}<br>
+    const redeploy = S.active?.id === this.job.id && S.active.deployed;
+    const labor = redeploy ? Math.round(setup * 0.5) : setup;
+    const upfront = redeploy || this.job.mode === 'signal' ? 0 : Math.round(this.job.pay * 0.3);
+    const msg = `${redeploy ? `<p>Redeploy · attempt ${(S.active.attempts || 0) + 1} of ${MAX_ATTEMPTS}. The client is waiting.</p>` : ''}${errs.length ? `<p class="bad">⚠ ${errs.length} blocking issue(s):<br>${errs.map(e => '• ' + e.text).join('<br>')}</p>` : ''}
+      <p>${redeploy ? 'Redeploy labor' : 'Setup labor'}: <b>${money(labor)}</b>${tfMult < 1 ? ' (Terraform −40%)' : ''}${redeploy ? ' (half — the groundwork is done)' : ''}<br>
       ${upfront ? `Upfront from client: <b>+${money(upfront)}</b><br>` : ''}
       Infrastructure bills tick from your wallet while it runs. If your balance drops below ${money(-creditLimit())}, your account is suspended.</p>`;
     if (!(await confirmBox(msg, { ok: errs.length ? 'Deploy anyway' : 'Deploy', title: 'Deploy to production?' }))) return;
-    if (!canSpend(setup - upfront)) return toast('Not enough money for setup. Simplify, or take smaller jobs first.', 'bad');
-    G.startOfJob(this.job);
-    spend(setup, 'Setup labor');
+    if (!canSpend(labor - upfront)) return toast('Not enough money for setup. Simplify, or take smaller jobs first.', 'bad');
+    if (redeploy) this.job.upfront = S.active.upfront || 0;
+    else {
+      G.startOfJob(this.job);
+      S.active = { id: this.job.id, job: this.job, design: this.design, deployed: true, attempts: 0, spent: 0, upfront: this.job.upfront || 0 };
+    }
+    spend(labor, redeploy ? 'Redeploy labor' : 'Setup labor');
+    save();
     renderHUD();
     sfx('deploy');
     show('run', { job: this.job, design: this.design });
   },
 });
+
+const MAX_ATTEMPTS = 3;
+const attemptsLeft = () => MAX_ATTEMPTS - 1 - (S.active?.attempts || 0);
+
+function runLessons(sim) {
+  const lessons = [], seen = new Set();
+  for (const e of sim.log) if (e.codex && ['incident', 'attack', 'breach', 'warn'].includes(e.level) && !seen.has(e.codex)) { seen.add(e.codex); lessons.push(e); }
+  for (const inc of sim.incidents) if (inc.state !== 'pending') { const meta = INCIDENTS[inc.type]; if (!inc.mitigated && !inc.autoFix && !seen.has('m' + inc.type)) { seen.add('m' + inc.type); lessons.push({ text: `${meta.name}: ${meta.mitigation}`, codex: meta.codex }); } }
+  return lessons;
+}
+
+const DIAG_HINT = {
+  availability: 'Requests failed. Look for a single point of failure (one instance, one AZ, one database), servers that ran out of capacity at peak, or an incident you didn\'t respond to. Spread across AZs, add a load balancer with health checks, auto scaling, and monitoring so you can see it happen.',
+  latency: 'Responses were too slow. Usually the compute tier was saturated at peak or the database was the bottleneck. Add capacity or auto scaling, put a cache (ElastiCache) or CDN in front of hot reads, or move closer to the users.',
+  rto: 'Recovery after the regional event took too long. You need a second region that can take traffic (pilot light or warm standby) and DNS failover with health checks.',
+  rpo: 'Too much data was lost. Replicate the database across regions (global database / cross-region replicas) and keep backups in another region.',
+  breach: 'An attacker got in. Add a WAF, keep databases in private subnets behind security groups, encrypt data, and use least-privilege IAM.',
+  compliance: 'A compliance control is missing. Check the Review tab — it lists the exact control the client requires.',
+  regions: 'The contract requires more regions with resources in them. Add a region and deploy at least a VPC with compute there.',
+  cost: 'You went over budget. Right-size instances, use auto scaling instead of a big fixed fleet, consider reserved or spot pricing, and drop components the contract doesn\'t need.',
+  suspended: 'Your balance fell below your credit line, so the provider shut everything off. Use a cheaper design or build up savings before big contracts.',
+  regulated: 'This client is regulated: any compliance gap or breach voids the contract. Fix those first.',
+};
 
 function field(label, input) { return h('div', { class: 'field' }, h('label', {}, label), input); }
 import { analyze } from '../sim/analyze.js';
@@ -293,7 +340,7 @@ registerScreen('run', {
   enter(root, { job, design }) {
     this.root = root; this.job = job; this.design = JSON.parse(JSON.stringify(design));
     this.sim = createSim(this.design, job, { skills: S.skills, charge: amt => { spend(amt, 'Infrastructure'); return S.money >= -creditLimit(); } });
-    this.speed = 1; this.paused = false; this.acc = 0; this.shownLog = 0; this.hasMon = this.sim.ar.has('monitor'); this.complaints = 0;
+    this.speed = 1; this.paused = false; this.finished = false; this.acc = 0; this.shownLog = 0; this.hasMon = this.sim.ar.has('monitor'); this.complaints = 0;
     this.actionSignature = null;
     App.world.buildArch(this.design, { job });
     root.append(this.ui());
@@ -316,7 +363,8 @@ registerScreen('run', {
     } }, '❚❚'), ...speeds.map(s => h('button', { class: 'btn small ' + (s === 1 ? '' : 'ghost'), onclick: e => { this.speed = s; [...e.currentTarget.parentNode.children].slice(1).forEach(b => b.classList.add('ghost')); e.currentTarget.classList.remove('ghost'); } }, s + '×')));
     return h('div', { class: 'runui' },
       h('div', { class: 'run-top panel' }, h('div', { class: 'bt-title' }, '● LIVE · ' + this.job.title), this.el.clock, h('div', { class: 'tbar' }, this.el.bar),
-        h('button', { class: 'btn help-button small', onclick: () => App.panels.phone({ job: this.job }) }, 'Ask a friend'), speedBtns),
+        h('button', { class: 'btn help-button small', onclick: () => App.panels.phone({ job: this.job }) }, 'Ask a friend'),
+        attemptsLeft() > 0 ? h('button', { class: 'btn ghost small', onclick: () => this.abortRun() }, 'Stop & fix') : null, speedBtns),
       h('div', { class: 'run-left panel' }, h('div', { class: 'panel-title' }, 'EVENTS'), this.el.log),
       h('div', { class: 'run-right panel' }, h('div', { class: 'panel-title' }, 'METRICS'), this.el.metrics,
         h('div', { class: 'small muted' }, 'traffic: demand (blue) · served (green)'), this.el.c1, h('div', { class: 'small muted' }, 'error rate'), this.el.c2, h('div', { class: 'small muted' }, 'cost / day'), this.el.c3),
@@ -393,22 +441,78 @@ registerScreen('run', {
       },
     }, action.label, h('small', {}, ' ' + money(action.cost)))));
   },
+  // Leave the live run and go back to the drawing board (counts as an attempt).
+  async abortRun() {
+    const wasPaused = this.paused; this.paused = true;
+    const left = attemptsLeft();
+    const ok = await confirmBox(`Stop the run and go back to your design?<br>Infrastructure you've paid so far stays spent. You can redeploy ${left} more time${left === 1 ? '' : 's'} before the client wants a result.`, { ok: 'Stop & fix', title: 'Roll back?' });
+    if (!ok || this.finished) { this.paused = wasPaused; return; }
+    this.finished = true;
+    this.backToDesign(results(this.sim).cost);
+  },
+
+  backToDesign(cost) {
+    stopLoop('server_hum');
+    S.active = { ...(S.active || {}), id: this.job.id, job: this.job, design: this.design, deployed: true,
+      attempts: (S.active?.attempts || 0) + 1, spent: (S.active?.spent || 0) + cost };
+    save(); renderHUD();
+    show('build', this.job);
+  },
+
+  // The window is over: show what happened and let the player decide what to do next.
   async finish() {
     const res = results(this.sim);
+    const preview = G.gradeBuild(this.job, this.design, res);
+    stopLoop('server_hum');
+    const left = attemptsLeft();
+    const failing = preview.lines.filter(l => !l.ok);
+    const lessons = runLessons(this.sim);
+    const pre = review(this.design, this.job, S.skills).items.filter(i => i.level === 'error' || i.level === 'warn');
+    const diag = h('div', { class: 'diagnose', hidden: true },
+      failing.length ? h('div', {}, h('div', { class: 'panel-title' }, 'WHY IT MISSED'),
+        ...failing.map(l => h('div', { class: 'diag-item' }, h('b', {}, l.text), h('p', {}, DIAG_HINT[l.key] || 'Check the event log and the Review tab.')))) : null,
+      lessons.length ? h('div', {}, h('div', { class: 'panel-title' }, 'WHAT WENT WRONG DURING THE RUN'),
+        ...lessons.slice(0, 6).map(l => h('div', { class: 'lesson' }, h('span', {}, l.text), l.codex ? h('button', { class: 'link', onclick: () => App.panels.codex(l.codex) }, 'learn') : null))) : null,
+      pre.length ? h('div', {}, h('div', { class: 'panel-title' }, 'DESIGN REVIEW'),
+        ...pre.slice(0, 8).map(i => h('div', { class: 'ritem ' + i.level }, h('span', {}, i.text), i.codex ? h('button', { class: 'link', onclick: () => App.panels.codex(i.codex) }, 'learn') : null))) : null,
+      !failing.length && !lessons.length && !pre.length ? h('p', { class: 'muted' }, 'Nothing went wrong. Ship it.') : null);
+    const diagBtn = h('button', { class: 'btn ghost', onclick: () => { diag.hidden = !diag.hidden; diagBtn.textContent = diag.hidden ? 'Diagnose' : 'Hide diagnosis'; } }, 'Diagnose');
+    const choice = await new Promise(resolve => {
+      const pick = value => () => { m.close(); resolve(value); };
+      const m = modal(h('div', {},
+        h('div', { class: 'results' },
+          h('div', { class: 'grade g' + preview.grade }, preview.grade),
+          h('div', { class: 'rcol' },
+            h('p', { class: 'muted' }, failing.length ? 'The client hasn\'t seen this yet. Fix it, or hand it over as-is.' : 'Everything the client asked for is met.'),
+            ...preview.lines.map(l => h('div', { class: 'rline ' + (l.ok ? 'ok' : 'no') }, (l.ok ? '✔ ' : '✖ ') + l.text)),
+            h('p', { class: 'muted small' }, left > 0 ? `Redeploys left: ${left}. Infrastructure already paid stays spent; redeploying costs half the setup labor.` : 'No redeploys left. The client wants the result.'))),
+        diag,
+        h('div', { class: 'row end gap wrap' },
+          diagBtn,
+          left > 0 ? h('button', { class: 'btn ghost', onclick: pick('fix') }, 'Fix & redeploy') : null,
+          h('button', { class: 'btn', onclick: pick('submit') }, failing.length ? 'Submit anyway' : 'Submit to client'))),
+        { title: this.job.title + ' — run complete', wide: true, closable: false });
+      if (failing.length) { diag.hidden = false; diagBtn.textContent = 'Hide diagnosis'; }
+    });
+    if (choice === 'fix') return this.backToDesign(res.cost);
+    gradeSound(preview.grade);
+    this.settle(res);
+  },
+
+  settle(res) {
+    if (S.active?.id === this.job.id && S.active.upfront != null) this.job.upfront = S.active.upfront;
+    const earlier = S.active?.id === this.job.id ? S.active.spent || 0 : 0;
     const out = G.settleBuild(this.job, this.design, res, this.sim);
-    stopLoop('server_hum'); gradeSound(out.grade);
     renderHUD();
-    const lessons = [];
-    const seen = new Set();
-    for (const e of this.sim.log) if (e.codex && ['incident', 'attack', 'breach', 'warn'].includes(e.level) && !seen.has(e.codex)) { seen.add(e.codex); lessons.push(e); }
-    for (const inc of this.sim.incidents) if (inc.state !== 'pending') { const meta = INCIDENTS[inc.type]; if (!inc.mitigated && !inc.autoFix && !seen.has('m' + inc.type)) { seen.add('m' + inc.type); lessons.push({ text: `${meta.name}: ${meta.mitigation}`, codex: meta.codex }); } }
+    const lessons = runLessons(this.sim);
     const body = h('div', { class: 'results' },
       h('div', { class: 'grade g' + out.grade }, out.grade),
       h('div', { class: 'rcol' },
         ...out.lines.map(l => h('div', { class: 'rline ' + (l.ok ? 'ok' : 'no') }, (l.ok ? '✔ ' : '✖ ') + l.text)),
         h('table', { class: 'moneytable' }, ...out.rows.map(([k, v]) => h('tr', {}, h('td', {}, k), h('td', { class: v < 0 ? 'bad' : 'good' }, money(v, { sign: true })))),
           h('tr', {}, h('td', {}, 'Infrastructure you paid during the contract'), h('td', { class: 'bad' }, money(-out.infra))),
-          h('tr', { class: 'total' }, h('td', {}, 'Net profit'), h('td', { class: out.net - (this.job.mode === 'signal' ? out.infra : 0) >= 0 ? 'good' : 'bad' }, money(this.job.mode === 'signal' ? out.net - out.infra : out.net, { sign: true })))),
+          earlier ? h('tr', {}, h('td', {}, 'Infrastructure from earlier attempts'), h('td', { class: 'bad' }, money(-earlier))) : null,
+          h('tr', { class: 'total' }, h('td', {}, 'Net profit'), h('td', { class: out.net - (this.job.mode === 'signal' ? out.infra : 0) - earlier >= 0 ? 'good' : 'bad' }, money((this.job.mode === 'signal' ? out.net - out.infra : out.net) - earlier, { sign: true })))),
         h('div', {}, `+${num(out.xp)} XP`, S.villain ? '' : ` · reputation ${out.rep >= 0 ? '+' : ''}${out.rep}`)),
       lessons.length ? h('div', { class: 'lessons' }, h('div', { class: 'panel-title' }, 'LESSONS'), ...lessons.slice(0, 6).map(l => h('div', { class: 'lesson' }, h('span', {}, l.text), l.codex ? h('button', { class: 'link', onclick: () => App.panels.codex(l.codex) }, 'learn') : null))) : null);
     const m = modal(h('div', {}, body, h('div', { class: 'row end gap' },
