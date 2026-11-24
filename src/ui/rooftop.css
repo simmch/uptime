@@ -126,6 +126,7 @@
 .rooftop-menu .btn.ghost { background: #252239; border: 1px solid #8e7ca9; }
 .rooftop-menu .btn.ghost:hover { background: #403552; }
 .rooftop-menu .btn.big { padding: 8px 12px; }
+.rooftop-menu .save-note { margin: -2px 0 0; color: #d7c6df; font-size: 17px; line-height: 1.25; }
 
 @media (max-width: 660px) {
   .rooftop-heading { top: 20vh; }

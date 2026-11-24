@@ -1,0 +1,6 @@
+.account { display: grid; gap: 12px; }
+.account p { margin: 0; }
+.account .stack { display: grid; gap: 4px; }
+.account .stack span { color: #b8c6e6; font-size: 16px; }
+.account .temp { letter-spacing: 0.18em; text-align: center; font-size: 22px; }
+.account-summary { display: grid; gap: 8px; margin-bottom: 8px; }

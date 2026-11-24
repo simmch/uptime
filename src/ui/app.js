@@ -244,6 +244,7 @@ export function acceptJob(job) {
 App.labs = { start: () => toast('Labs not loaded') };
 
 on('levelup', ups => { for (const u of ups) toast(`${icon('star', 20)} <b>LEVEL ${u.level}</b> · +${u.sp} skill point${u.sp > 1 ? 's' : ''}`, 'good', 4500); renderNav(); });
+on('save-failed', () => toast('This browser could not store your progress. Download a save file from Save & Settings before you leave.', 'bad', 6000));
 on('state', () => renderHUD());
 on('money', () => renderHUD());
 export { esc, confirmBox, save };

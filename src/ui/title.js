@@ -1,10 +1,13 @@
 // Title screen, intro and endings.
-import { h, $, money } from './dom.js';
+import { h, $, money, toast } from './dom.js';
 import './rooftop.css';
 import { openAudioSettings } from './audio.js';
 import { startRooftop } from '../render/rooftop.js';
 import { App, registerScreen, show, renderHUD, runStory, dialogue } from './app.js';
 import { S, setState, newState, load, save, wipe, title as titleOf, xpForLevel } from '../core/state.js';
+import { loadSaveFile } from './savefile.js';
+import { openAccount } from './account.js';
+import { signedInEmail, pushCloud, accountError } from '../auth/cloud.js';
 import { ENDINGS } from '../data/story.js';
 import { sfx } from '../audio/sfx.js';
 
@@ -16,16 +19,21 @@ registerScreen('title', {
       value: saved?.name || '', maxlength: 18 });
     const canvas = h('canvas', { class: 'rooftop-canvas', 'aria-hidden': 'true' });
     const thought = h('p', { class: 'rooftop-thought' });
-    const newGame = h('form', { onsubmit: event => {
+    const newGame = h('form', { onsubmit: async event => {
       event.preventDefault();
-      if (saved && !confirm('Start a new game? Your current save will be replaced.')) return;
+      const onAccount = signedInEmail();
+      if ((saved || onAccount) && !confirm(`Start a new game? Your current save will be replaced.${onAccount ? ' The copy on your account is replaced too.' : ''}`)) return;
       wipe();
       const player = newState(name.value.trim() || 'Chris');
       player.flags.drivePending = true;
       setState(player);
-      save();
+      save({ remote: false });
+      if (onAccount) {
+        try { await pushCloud(); }
+        catch (error) { toast(accountError(error), 'bad'); }
+      }
       startGame();
-    } }, name, h('button', { class: 'btn big', type: 'submit' }, 'New game'));
+    } }, name, h('button', { class: 'btn big' + (saved ? ' ghost' : ''), type: 'submit' }, 'New game'));
     root.append(h('main', { class: 'rooftop-title', 'aria-labelledby': 'game-logo' },
       canvas,
       h('div', { class: 'rooftop-heading' },
@@ -33,9 +41,11 @@ registerScreen('title', {
         h('p', { class: 'rooftop-tagline' }, 'a cloud architect’s story')),
       thought,
       h('div', { class: 'rooftop-menu' },
-        saved && h('button', { class: 'btn ghost big', type: 'button', onclick: () => { setState(saved); startGame(); } },
-          `Continue — ${saved.name}, day ${saved.day}`),
+        saved && h('button', { class: 'btn big', type: 'button', onclick: () => { setState(saved); startGame(); } }, 'Continue'),
+        saved && h('p', { class: 'save-note' }, `${saved.name} · day ${saved.day} · level ${saved.level}`, h('br'), 'Saved on this device'),
         newGame,
+        h('button', { class: 'btn ghost', type: 'button', onclick: async () => { if (await loadSaveFile()) startGame(); } }, 'Load a save file'),
+        h('button', { class: 'btn ghost', type: 'button', onclick: () => openAccount() }, signedInEmail() ? `Account · ${signedInEmail()}` : 'Account'),
         h('button', { class: 'btn ghost audio-entry', type: 'button', onclick: openAudioSettings }, 'Audio settings'))));
     this.stopRooftop = startRooftop(canvas, thought);
   },

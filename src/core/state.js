@@ -4,8 +4,11 @@ import { DOMAIN_IDS } from '../data/domains.js';
 import { emit } from './events.js';
 import { freshLife, popularityBonus, restoreLife, useTime } from '../data/life.js';
 import { legacyDay } from '../data/legacy.js';
+import { fileSave, newerSave, unpackSave } from './save.js';
 
 const SAVE_KEY = 'uptime_save_v1';
+const BACKUP_DB = 'uptime';
+const BACKUP_STORE = 'kv';
 
 export const CERTS = {
   ccp: { name: 'Cloud Practitioner', short: 'CCP', fee: 100, lvl: 3, q: 10, diff: [1, 1], domains: null, pass: 0.7, sp: 1, payBonus: 0.05, eq: 'Azure AZ-900 · Google Cloud Digital Leader' },
@@ -82,17 +85,104 @@ export function setState(s) {
   emit('state');
 }
 
-export function save() {
-  if (!S) return;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* storage may be unavailable */ }
+let backupChain = Promise.resolve();
+let databasePromise = null;
+let reportedStoreFailure = false;
+
+function readLocal() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw ? unpackSave(raw) : null;
+  } catch { return null; }
 }
-export function load() {
-  try { const raw = localStorage.getItem(SAVE_KEY); if (raw) return JSON.parse(raw); } catch (e) { /* ignore */ }
-  return null;
+
+function database() {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('indexedDB unavailable'));
+  if (!databasePromise) {
+    databasePromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(BACKUP_DB, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(BACKUP_STORE)) req.result.createObjectStore(BACKUP_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => { databasePromise = null; reject(req.error); };
+    });
+  }
+  return databasePromise;
 }
-export function wipe() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
+
+// A second copy. localStorage is what the title screen reads, and some browsers
+// drop it when the site has cached a lot of music. The backup brings it back.
+function writeBackup(json) {
+  backupChain = backupChain.then(async () => {
+    const db = await database();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(BACKUP_STORE, 'readwrite');
+      const store = tx.objectStore(BACKUP_STORE);
+      if (json == null) store.delete(SAVE_KEY);
+      else store.put(json, SAVE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }).catch(() => {});
+  return backupChain;
+}
+
+async function readBackup() {
+  await backupChain;
+  const db = await database();
+  const json = await new Promise((resolve, reject) => {
+    const tx = db.transaction(BACKUP_STORE, 'readonly');
+    const req = tx.objectStore(BACKUP_STORE).get(SAVE_KEY);
+    req.onsuccess = () => resolve(req.result ?? null);
+    req.onerror = () => reject(req.error);
+  });
+  return json ? unpackSave(json) : null;
+}
+
+export function save({ remote = true } = {}) {
+  if (!S) return false;
+  S.savedAt = Date.now();
+  const json = JSON.stringify(S);
+  let stored = false;
+  try { localStorage.setItem(SAVE_KEY, json); stored = true; } catch { /* quota or private mode */ }
+  writeBackup(json);
+  if (stored) reportedStoreFailure = false;
+  else if (!reportedStoreFailure) { reportedStoreFailure = true; emit('save-failed'); }
+  if (remote) emit('saved');
+  return stored;
+}
+
+export function load() { return readLocal(); }
+
+// Called once at startup, before the title screen, so a backup can refill
+// localStorage before Continue decides whether a game is waiting.
+export async function restore() {
+  const local = readLocal();
+  let backup = null;
+  try { backup = await readBackup(); } catch { /* storage unavailable */ }
+  const best = newerSave(local, backup);
+  if (!best) return null;
+  const json = JSON.stringify(best);
+  if (JSON.stringify(local) !== json) {
+    try { localStorage.setItem(SAVE_KEY, json); } catch { /* keep the backup */ }
+  }
+  if (JSON.stringify(backup) !== json) writeBackup(json);
+  return best;
+}
+
+export function wipe() {
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+  return writeBackup(null);
+}
 export function exportSave() { return btoa(unescape(encodeURIComponent(JSON.stringify(S)))); }
-export function importSave(str) { const s = JSON.parse(decodeURIComponent(escape(atob(str.trim())))); setState(s); save(); }
+export function saveFile() { return fileSave(S); }
+export function importSave(str) {
+  const next = unpackSave(str);
+  if (!next) throw new Error('Invalid save');
+  setState(next);
+  return save();
+}
 
 // ───────────── economy ─────────────
 export function home() { return HOMES.find(h => h.id === S.home) || HOMES[0]; }

@@ -2,7 +2,8 @@
 import { h, $, money, num, modal, toast, confirmBox } from './dom.js';
 import { icon } from '../render/atlas.js';
 import { App, renderHUD, renderNav, show, runStory, dialogue } from './app.js';
-import { S, save, wipe, exportSave, importSave, skillState, learnSkill, CERTS, HOMES, GEAR, spend, canSpend, gainXP, domainLevel, earn } from '../core/state.js';
+import { S, save, wipe, exportSave, importSave, skillState, learnSkill, CERTS, HOMES, GEAR, spend, canSpend, gainXP, domainLevel, earn, newState, setState } from '../core/state.js';
+import { downloadSave, loadSaveFile } from './savefile.js';
 import { SKILLS, SKILL } from '../data/skills.js';
 import { DOMAINS, DOMAIN_IDS } from '../data/domains.js';
 import { CODEX, codexEntry } from '../data/codex.js';
@@ -13,6 +14,8 @@ import { mulberry32 } from '../sim/rng.js';
 import * as G from '../game.js';
 import { sfx } from '../audio/sfx.js';
 import { openAudioSettings } from './audio.js';
+import { accountSummary } from './account.js';
+import { signedInEmail, pushCloud } from '../auth/cloud.js';
 import { hasTouch } from './mobile.js';
 import { HOUSING_ROOMS, ROOM_NAMES } from '../data/legacy.js';
 
@@ -259,15 +262,35 @@ App.panels.log = function () {
 // ═════════════ SETTINGS ═════════════
 App.panels.settings = function () {
   const ta = h('textarea', { class: 'txt', rows: 3, placeholder: 'Paste a save code to import' });
+  const when = S.savedAt ? ` Last saved ${new Date(S.savedAt).toLocaleString()}.` : '';
   const body = h('div', {},
-    h('p', {}, 'The game autosaves to this browser after every action.'),
+    accountSummary(),
+    h('p', {}, `Progress saves on this device after every action, and it is waiting when you come back.${when} ${signedInEmail() ? 'A signed-in game is also copied to your account.' : 'Download a file if you want a copy you can load on another browser.'}`),
     h('div', { class: 'row gap wrap' },
-      h('button', { class: 'btn', onclick: () => { save(); toast('Saved.'); } }, 'Save now'),
+      h('button', { class: 'btn', onclick: () => { if (save()) toast('Saved on this device.'); else toast('Could not store the save here. Download a file instead.', 'bad'); } }, 'Save now'),
+      h('button', { class: 'btn ghost', onclick: () => downloadSave() }, 'Download save file'),
+      h('button', { class: 'btn ghost', onclick: async () => { if (await loadSaveFile()) location.reload(); } }, 'Load save file'),
       h('button', { class: 'btn ghost', onclick: openAudioSettings }, 'Audio settings'),
-      h('button', { class: 'btn ghost', onclick: () => { navigator.clipboard?.writeText(exportSave()); toast('Save code copied to clipboard.'); } }, 'Export save code'),
-      h('button', { class: 'btn ghost', onclick: () => { try { importSave(ta.value); toast('Imported.'); location.reload(); } catch (e) { toast('Invalid save code.', 'bad'); } } }, 'Import'),
-      h('button', { class: 'btn danger', onclick: async () => { if (await confirmBox('Delete your save and start over?', { ok: 'Delete' })) { wipe(); location.reload(); } } }, 'New game')),
-    ta,
+      h('button', { class: 'btn danger', onclick: async () => {
+        if (!(await confirmBox(`Delete your save and start over?${signedInEmail() ? ' The copy on your account is replaced too.' : ''}`, { ok: 'Delete' }))) return;
+        await wipe();
+        const player = newState(S?.name || 'Chris');
+        player.flags.drivePending = true;
+        setState(player);
+        save({ remote: false });
+        if (signedInEmail()) {
+          try { await pushCloud(); }
+          catch { toast('The new game is on this device, but the account copy could not be replaced.', 'bad'); return; }
+        }
+        location.reload();
+      } }, 'New game')),
+    h('details', { class: 'save-code' },
+      h('summary', {}, 'Save code'),
+      h('p', { class: 'small muted' }, 'A save code is the same progress as the file, packed into text you can paste.'),
+      ta,
+      h('div', { class: 'row gap wrap' },
+        h('button', { class: 'btn ghost small', onclick: () => { navigator.clipboard?.writeText(exportSave()); toast('Save code copied to clipboard.'); } }, 'Copy save code'),
+        h('button', { class: 'btn ghost small', onclick: () => { try { importSave(ta.value); toast('Imported.'); location.reload(); } catch { toast('Invalid save code.', 'bad'); } } }, 'Import code'))),
     h('div', { class: 'panel-title' }, 'CONTROLS'),
     h('ul', { class: 'small' }, (hasTouch() ? [
       'Drive: hold the on-screen pedal. Release it to stop.',

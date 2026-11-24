@@ -12,7 +12,9 @@ import './ui/title.js';
 import './ui/drive.js';
 import './ui/home.js';
 import './ui/legacy.js';
-import { S, save } from './core/state.js';
+import { S, restore, save } from './core/state.js';
+import { startAccount, flushCloud } from './auth/cloud.js';
+import { openAccount } from './ui/account.js';
 import { mkNode, storyJob } from './data/jobs.js';
 import * as G from './game.js';
 
@@ -21,9 +23,12 @@ async function boot() {
   await loadAtlas();
   App.world = new World($('#world'), $('#labels'));
   App.world.buildOffice({ villain: false, home: 'couch', gear: [], certs: [], chapter: 1 });
+  await restore();
+  const account = await startAccount();
   show('title');
+  if (account.recovery) openAccount({ recovery: true });
   $('#loading')?.remove();
-  window.addEventListener('beforeunload', () => { if (S) save(); });
+  window.addEventListener('beforeunload', () => { if (S) save(); flushCloud(); });
   window.__uptime = { App, show, G, mkNode, storyJob, get S() { return S; } }; // handy for debugging in the console
 }
 boot().catch(e => { console.error(e); const l = $('#loading'); if (l) l.textContent = 'Failed to load: ' + e.message; });
