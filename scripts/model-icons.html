@@ -1,0 +1,42 @@
+<!doctype html><html><head><base href="/"></head><body style="margin:0;background:#0000">
+<canvas id="c" width="256" height="256"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { loadManifest, loadModel, instance, modelKeys } from '/src/render/models.js';
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight('#f2f6ff', '#5a4a55', 1.9));
+const sun = new THREE.DirectionalLight('#fff4e4', 2.3); sun.position.set(3, 6, 5); scene.add(sun);
+const rim = new THREE.DirectionalLight('#9fc4ff', 0.8); rim.position.set(-4, 3, -5); scene.add(rim);
+const cam = new THREE.PerspectiveCamera(28, 1, 0.01, 100);
+window.renderIcon = async (key, opts = {}) => {
+  const e = await loadModel(key); if (!e) return null;
+  const obj = instance(key, { fit: 1 });
+  obj.rotation.y = opts.rotY ?? -0.6;
+  obj.userData.tick?.(0.5);
+  scene.add(obj);
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  if (e.skinned && obj.getObjectByName('LeftForeArm')) {
+    // portrait: head and shoulders, facing the viewer
+    obj.rotation.y = -0.35; obj.updateMatrixWorld(true);
+    const head = obj.getObjectByName('Head');
+    const hp = head ? head.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(0, box.max.y * 0.85, 0);
+    const h = box.max.y - box.min.y;
+    box.set(new THREE.Vector3(hp.x - h * 0.16, hp.y - h * 0.2, hp.z - h * 0.1), new THREE.Vector3(hp.x + h * 0.16, hp.y + h * 0.1, hp.z + h * 0.1));
+  }
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  const dist = sphere.radius / Math.sin(THREE.MathUtils.degToRad(cam.fov / 2)) * 0.92;
+  const pitch = opts.pitch ?? 0.42;
+  cam.position.set(0, Math.sin(pitch) * dist, Math.cos(pitch) * dist).add(sphere.center);
+  cam.lookAt(sphere.center);
+  renderer.render(scene, cam);
+  const url = canvas.toDataURL('image/png');
+  scene.remove(obj);
+  return url;
+};
+window.ready = loadManifest().then(() => modelKeys());
+</script></body></html>

@@ -58,16 +58,15 @@ Plus: an 83-entry **Codex** (each with AWS/Azure/GCP equivalents and exam tips),
 6. **The Signal** — the villain arc: run a broadcast that must stay up while DNS is seized, AWS terminates your account, and courts shut down whole jurisdictions. Multi-cloud or die.
 7. **Root** — the last broadcast, and a choice.
 
-## Sprites
+## Art
 
-All sprites come from [Pixel Art Atlas 1.4M](https://huggingface.co/datasets/Angais/pixel-art-atlas-1.4m) (CC0) and are packed into `public/sprites/atlas.png`. To re-pick sprites, edit `scripts/sprite_picks.json` (key → [dataset subject, candidate index]) and run:
+The game is set in the 1980s: a synthwave look built from low-poly models by [Polyfork](https://polyfork.dev) (CC BY 4.0, see [CREDITS.md](CREDITS.md)), with neon bloom, grain, lens fringing and a vignette from [postprocessing](https://github.com/vanruesc/postprocessing) (found via [Fasani/three-js-resources](https://github.com/Fasani/three-js-resources)) and a CSS scanline overlay. Home life is third person (WASD + drag to look, or tap to walk on touch screens).
 
-```bash
-pip install pyarrow pillow
-python3 scripts/fetch_sprites.py download   # ~60 MB of parquet shards
-python3 scripts/fetch_sprites.py sheet      # scripts/contact_sheet.png of candidates
-python3 scripts/fetch_sprites.py build      # rebuild the atlas
-```
+- `scripts/polyfork-models.json` maps each game key (`server`, `lb`, `player`, `home_bed`, …) to a Polyfork model title.
+- `python3 scripts/fetch-polyfork.py catalog.json` downloads and compresses them into `public/models` (needs `@gltf-transform/cli`; `catalog.json` is the `{id, title}` card list from https://polyfork.dev/assets).
+- `npx vite` then `python3 scripts/model-icons.py` re-renders the UI icon sheet (`public/sprites/icons.webp`, needs Playwright).
+
+The old pixel atlas (`public/sprites/atlas.png`, Pixel Art Atlas 1.4M by Angais, CC0) is only a fallback for keys with no model.
 
 ## Project layout
 

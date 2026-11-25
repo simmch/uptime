@@ -1,6 +1,6 @@
 // App shell: HUD, navigation, dialogue, office & job board, screen routing.
 import { h, $, money, num, modal, toast, confirmBox, esc } from './dom.js';
-import { icon } from '../render/atlas.js';
+import { icon, pixelIcon } from '../render/atlas.js';
 import { S, save, xpForLevel, title, creditLimit, home } from '../core/state.js';
 import { on, emit } from '../core/events.js';
 import { CHARS } from '../data/story.js';
@@ -60,7 +60,7 @@ export function renderNav() {
   if (['build', 'run', 'title', 'drive', 'ending'].includes(App.screen)) { el.style.display = 'none'; return; }
   el.style.display = '';
   for (const [id, spr, label] of NAV) {
-    const b = h('button', { class: 'navbtn ' + (App.screen === id ? 'on' : ''), title: label, onclick: () => { if (App.panels[id]) App.panels[id](); else if (App.screen !== id) show(id); } }, h('span', { html: icon(spr, 30) }), h('span', { class: 'navlabel' }, label));
+    const b = h('button', { class: 'navbtn ' + (App.screen === id ? 'on' : ''), title: label, onclick: () => { if (App.panels[id]) App.panels[id](); else if (App.screen !== id) show(id); } }, h('span', { html: pixelIcon(spr, 30) }), h('span', { class: 'navlabel' }, label));
     if (id === 'office' && App.screen === 'office') b.setAttribute('aria-current', 'page');
     if (id === 'skills' && S.sp > 0) b.append(h('span', { class: 'dot' }));
     el.append(b);
@@ -189,7 +189,7 @@ function reqChips(job) {
 export function jobCard(job, story, closeDesk) {
   const kindLabel = { build: job.mode === 'signal' ? 'BROADCAST' : job.mode === 'cost' ? 'COST CUT' : 'BUILD', netlab: 'NETWORK LAB', cidr: 'SUBNETTING', audit: 'SEC AUDIT', iam: 'IAM LAB', migration: 'MIGRATION', terminal: 'TERMINAL', recon: 'RECON' }[job.type] || job.type;
   return h('button', { class: 'job ' + (story ? 'story' : ''), type: 'button', onclick: () => jobBrief(job, closeDesk) },
-    h('span', { html: icon(job.client?.sprite || 'box', 40) }),
+    h('span', { html: pixelIcon(job.client?.sprite || 'box', 40) }),
     h('div', { class: 'job-main' },
       h('div', { class: 'job-title' }, job.title),
       h('div', { class: 'job-sub' }, job.client?.name || '', ' · ', h('b', {}, kindLabel), job.workDays ? ` · ${job.workDays}d` : ''),
@@ -200,7 +200,7 @@ export function jobCard(job, story, closeDesk) {
 export function jobBrief(job, closeDesk) {
   const r = job.req;
   const body = h('div', { class: 'brief' });
-  body.append(h('div', { class: 'row gap' }, h('span', { html: icon(job.client?.sprite || 'box', 64) }), h('div', {}, h('h3', {}, job.title), h('div', { class: 'muted' }, job.client?.name), h('p', {}, job.brief))));
+  body.append(h('div', { class: 'row gap' }, h('span', { html: pixelIcon(job.client?.sprite || 'box', 64) }), h('div', {}, h('h3', {}, job.title), h('div', { class: 'muted' }, job.client?.name), h('p', {}, job.brief))));
   if (r) {
     const t = h('table', { class: 'reqtable' });
     const row = (k, v) => t.append(h('tr', {}, h('td', {}, k), h('td', {}, v)));

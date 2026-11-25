@@ -1,6 +1,6 @@
 // Build mode (design the architecture) and Run mode (watch it survive).
 import { h, $, money, num, modal, toast, confirmBox, sparkline } from './dom.js';
-import { icon } from '../render/atlas.js';
+import { pixelIcon } from '../render/atlas.js';
 import { cameraControls, hasTouch, isCompact, setDrawer } from './mobile.js';
 import { App, registerScreen, show, renderHUD, runStory, dialogue } from './app.js';
 import { S, save, spend, canSpend, creditLimit } from '../core/state.js';
@@ -169,7 +169,7 @@ registerScreen('build', {
       for (const c of items) {
         const ok = compUnlocked(c);
         grp.append(h('button', { class: `pitem ${ok ? '' : 'locked'} ${this.placing === c.id ? 'on' : ''}`, title: ok ? c.desc : `Requires skill: ${SKILL[c.skill]?.name}`, onclick: () => this.startPlace(c) },
-          h('span', { html: icon(c.sprite, 26) }), h('span', { class: 'pi-name' }, c.name), ok ? h('span', { class: 'pi-scope' }, c.scope === 'az' ? 'AZ' : c.scope === 'region' ? 'RGN' : 'GLB') : h('span', { class: 'pi-lock' }, '🔒')));
+          h('span', { html: pixelIcon(c.sprite, 26) }), h('span', { class: 'pi-name' }, c.name), ok ? h('span', { class: 'pi-scope' }, c.scope === 'az' ? 'AZ' : c.scope === 'region' ? 'RGN' : 'GLB') : h('span', { class: 'pi-lock' }, '🔒')));
       }
       pal.append(grp);
     }
@@ -245,7 +245,7 @@ registerScreen('build', {
     if (!n) return h('p', { class: 'muted' }, 'Select a component in the world to configure it.');
     const c = COMPONENT[n.id];
     const el = h('div', { class: 'insp' },
-      h('div', { class: 'row gap' }, h('span', { html: icon(c.sprite, 48) }), h('div', {}, h('h3', {}, c.name), h('div', { class: 'muted small' }, c.scope === 'global' ? 'Global' : `${n.region}${n.az != null ? 'abc'[n.az] : ''}`))),
+      h('div', { class: 'row gap' }, h('span', { html: pixelIcon(c.sprite, 48) }), h('div', {}, h('h3', {}, c.name), h('div', { class: 'muted small' }, c.scope === 'global' ? 'Global' : `${n.region}${n.az != null ? 'abc'[n.az] : ''}`))),
       h('p', {}, c.desc),
       h('div', { class: 'names' }, h('span', { style: { color: '#ff9900' } }, 'AWS: ' + c.names.aws), h('span', { style: { color: '#3a96dd' } }, 'Azure: ' + c.names.azure), h('span', { style: { color: '#34a853' } }, 'GCP: ' + c.names.gcp)));
     if (c.scope === 'az') el.append(field('AZ', h('select', { class: 'sel', onchange: e => { n.az = +e.target.value; this.rebuild(); } }, ...[0, 1, 2].map(a => h('option', { value: a, selected: n.az === a }, n.region + 'abc'[a])))));

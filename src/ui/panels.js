@@ -1,6 +1,6 @@
 // Skills, Codex, Certifications, Shop, Story log, Settings, Practice.
 import { h, $, money, num, modal, toast, confirmBox } from './dom.js';
-import { icon } from '../render/atlas.js';
+import { icon, pixelIcon } from '../render/atlas.js';
 import { App, renderHUD, renderNav, show, runStory, dialogue } from './app.js';
 import { S, save, wipe, exportSave, importSave, skillState, learnSkill, CERTS, HOMES, GEAR, spend, canSpend, gainXP, domainLevel, earn, newState, setState } from '../core/state.js';
 import { downloadSave, loadSaveFile } from './savefile.js';
@@ -73,7 +73,7 @@ App.panels.codex = function (openId) {
     const e = current && codexEntry(current);
     if (e) {
       const comp = e.comp && COMPONENT[e.comp];
-      page.append(h('h2', { style: { color: DOMAINS[e.domain].color } }, comp ? h('span', { html: icon(comp.sprite, 40) }) : null, ' ', e.title), h('p', {}, e.body), h('ul', {}, ...e.facts.map(f => h('li', {}, f))));
+      page.append(h('h2', { style: { color: DOMAINS[e.domain].color } }, comp ? h('span', { html: pixelIcon(comp.sprite, 40) }) : null, ' ', e.title), h('p', {}, e.body), h('ul', {}, ...e.facts.map(f => h('li', {}, f))));
       if (comp) page.append(h('div', { class: 'names' }, h('span', { style: { color: '#ff9900' } }, 'AWS: ' + comp.names.aws), h('span', { style: { color: '#3a96dd' } }, 'Azure: ' + comp.names.azure), h('span', { style: { color: '#34a853' } }, 'GCP: ' + comp.names.gcp)));
       page.append(h('div', { class: 'tip' }, '🎯 Exam / interview tip: ' + e.tip));
       if (!S.codexRead.includes(e.id)) { S.codexRead.push(e.id); gainXP(8, [e.domain]); save(); renderHUD(); }
@@ -306,7 +306,7 @@ App.panels.settings = function () {
       'Dialogue: click or press Space.',
     ]).map(text => h('li', {}, text))),
     h('div', { class: 'panel-title' }, 'CREDITS'),
-    h('p', { class: 'small muted' }, 'Sprites: Pixel Art Atlas 1.4M by Angais (CC0), huggingface.co/datasets/Angais/pixel-art-atlas-1.4m. Rendering: three.js. Prices are simplified approximations of public cloud list prices for teaching.'));
+    h('p', { class: 'small muted' }, '3D models and icons: Polyfork (polyfork.dev), CC BY 4.0 — the full list with links is in CREDITS.md. Character animations: Quaternius Universal Animation Library (CC0). Post-processing: postprocessing by Raoul van Rüschen (Zlib). Fallback pixel sprites: Pixel Art Atlas 1.4M by Angais (CC0). Rendering: three.js. Prices are simplified approximations of public cloud list prices for teaching.'));
   modal(body, { title: 'SAVE & SETTINGS' });
 };
 
@@ -325,7 +325,7 @@ App.panels.practice = function () {
     ['Domain quiz', 'book', 'net_basics', () => practiceQuiz()],
   ];
   const body = h('div', {}, h('p', { class: 'muted' }, 'Practice labs pay no money but give XP (once per day each) and build the muscle memory real contracts need.'),
-    h('div', { class: 'practice-grid' }, ...opts.map(([name, spr, skill, fn]) => h('button', { class: 'pcard', disabled: !has(skill), onclick: () => { m.close(); fn(); } }, h('span', { html: icon(spr, 40) }), h('b', {}, name), !has(skill) ? h('small', {}, '🔒 ' + SKILL[skill].name) : null))));
+    h('div', { class: 'practice-grid' }, ...opts.map(([name, spr, skill, fn]) => h('button', { class: 'pcard', disabled: !has(skill), onclick: () => { m.close(); fn(); } }, h('span', { html: pixelIcon(spr, 40) }), h('b', {}, name), !has(skill) ? h('small', {}, '🔒 ' + SKILL[skill].name) : null))));
   const m = modal(body, { title: 'PRACTICE LABS', wide: true });
 };
 

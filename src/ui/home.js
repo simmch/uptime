@@ -156,8 +156,30 @@ registerScreen('office', {
     const phone = actionButton('Ask a friend', () => openPhone(), { class: 'home-phone help-button' });
     phone.prepend(h('span', { html: icon('phone', 28) }));
     const decorate = actionButton('Decorate', openDecor, { class: 'btn ghost small home-decorate' });
-    const hint = h('span', { class: 'home-walk-hint' }, h('span', { class: 'desktop-input-hint' }, 'WASD / arrows to walk'),
-      h('span', { class: 'touch-input-hint' }, 'Tap the floor to walk · tap an item to use it'));
+    const hint = h('span', { class: 'home-walk-hint' }, h('span', { class: 'desktop-input-hint' }, 'WASD to walk · drag to look · click to go'),
+      h('span', { class: 'touch-input-hint' }, 'Tap to walk · drag or the arrows to look all the way around'));
+    const lookPointers = new Map();
+    const lookButton = (label, text, yaw, pitch) => {
+      const button = h('button', {
+        type: 'button', class: 'home-look-btn', 'aria-label': label,
+        onpointerdown(event) {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          lookPointers.set(event.pointerId, { yaw, pitch });
+          event.currentTarget.setPointerCapture(event.pointerId);
+        },
+        onpointerup(event) { lookPointers.delete(event.pointerId); },
+        onpointercancel(event) { lookPointers.delete(event.pointerId); },
+        onlostpointercapture(event) { lookPointers.delete(event.pointerId); },
+      }, text);
+      return button;
+    };
+    const lookPad = h('div', { class: 'home-look', role: 'group', 'aria-label': 'Look around' },
+      lookButton('Look left', '←', -1, 0),
+      lookButton('Look right', '→', 1, 0),
+      lookButton('Look up', '↑', 0, -1),
+      lookButton('Look down', '↓', 0, 1));
     const objective = h('span', { class: 'home-objective', hidden: Boolean(S.jobsDone) }, 'Walk to your computer to start work');
     let selectedId;
     let walking = false;
@@ -184,41 +206,59 @@ registerScreen('office', {
       distanceToStep = 0;
     }
 
-    // Touch: hold a finger on the floor to walk toward it; tap to walk there.
-    // Tapping a station (bed, computer, …) walks over and uses it.
-    let walkTo = null, stuck = 0;
+    // Third person: drag (mouse or finger) to look around; tap or click the floor to walk there.
+    // Tapping a station (bed, computer, …) walks over and uses it. Pinch or scroll to zoom.
+    let walkTo = null, stuck = 0, pinch = null;
     const canvas = App.world.renderer.domElement;
-    const aim = (event, final) => {
+    const aim = event => {
       const view = App.world.homeView;
       const point = view?.groundPoint(event.clientX, event.clientY);
       if (!point) return;
-      const station = final ? view.stationNear(point.x, point.z) : null;
+      const station = view.stationNear(point.x, point.z);
       walkTo = station ? { x: station.x, z: station.z, station } : { x: point.x, z: point.z };
       stuck = 0;
     };
+    const pinchDistance = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+    canvas.addEventListener('contextmenu', event => event.preventDefault(), { signal });
     canvas.addEventListener('pointerdown', event => {
-      if (event.pointerType !== 'touch' || isPaused()) return;
+      if (isPaused() || (event.pointerType === 'mouse' && event.button !== 0 && event.button !== 2)) return;
       event.preventDefault();
       canvas.setPointerCapture(event.pointerId);
-      touches.set(event.pointerId, { x: event.clientX, y: event.clientY, t: performance.now() });
-      aim(event, false);
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY, sx: event.clientX, sy: event.clientY, t: performance.now(), moved: false });
+      pinch = touches.size === 2 ? pinchDistance() : null;
     }, { signal });
     canvas.addEventListener('pointermove', event => {
-      if (touches.has(event.pointerId) && !isPaused()) aim(event, false);
+      const t = touches.get(event.pointerId);
+      if (!t || isPaused()) return;
+      const dx = event.clientX - t.x, dy = event.clientY - t.y;
+      t.x = event.clientX; t.y = event.clientY;
+      if (pinch && touches.size === 2) {
+        const next = pinchDistance();
+        App.world.homeView?.zoomCamera(pinch / next);
+        pinch = next;
+        return;
+      }
+      if (!t.moved && Math.hypot(event.clientX - t.sx, event.clientY - t.sy) < 9) return;
+      t.moved = true;
+      App.world.homeView?.look(dx * (event.pointerType === 'touch' ? 1.65 : 1), dy * (event.pointerType === 'touch' ? 1.65 : 1));
     }, { signal });
     for (const name of ['pointerup', 'pointercancel']) {
       canvas.addEventListener(name, event => {
         const start = touches.get(event.pointerId);
         if (!touches.delete(event.pointerId)) return;
-        if (name === 'pointercancel') { walkTo = null; return; }
-        // A quick tap keeps walking to the spot (or station); a hold stops when lifted.
-        const tap = performance.now() - start.t < 350 && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 14;
-        if (tap) aim(event, true); else walkTo = null;
+        if (touches.size < 2) pinch = null;
+        if (name === 'pointercancel' || start.moved || event.button === 2) return;
+        if (performance.now() - start.t < 450) aim(event);
       }, { signal });
     }
+    canvas.addEventListener('wheel', event => {
+      if (isPaused()) return;
+      event.preventDefault();
+      App.world.homeView?.zoomCamera(event.deltaY > 0 ? 1.1 : 0.9);
+    }, { signal, passive: false });
 
     root.append(controls.panel, h('div', { class: 'home-action-bar' }, prompt, objective, hint),
-      h('div', { class: 'home-utilities' }, decorate, phone));
+      lookPad, h('div', { class: 'home-utilities' }, decorate, phone));
 
     window.addEventListener('keydown', event => {
       if (isPaused() || event.metaKey || event.ctrlKey || event.altKey || event.target instanceof HTMLInputElement ||
@@ -249,6 +289,11 @@ registerScreen('office', {
       const directions = [...pressed].map(key => MOVEMENT[key]);
       const axis = index => Number(directions.some(value => value[index] > 0)) - Number(directions.some(value => value[index] < 0));
       const view = App.world.homeView;
+      if (lookPointers.size) {
+        let yaw = 0, pitch = 0;
+        for (const step of lookPointers.values()) { yaw += step.yaw; pitch += step.pitch; }
+        view.orbit(yaw * 2.2 * dt, pitch * 1.25 * dt);
+      }
       if (pressed.size) walkTo = null;
       let horizontal = axis(0), vertical = axis(1);
       if (walkTo) {

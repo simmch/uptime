@@ -2,16 +2,22 @@ import * as THREE from 'three';
 import { DECOR, HOME_SPAWN, HOME_STATIONS } from '../data/life.js';
 import { HOUSING_ROOMS, childAge, partnerFor } from '../data/legacy.js';
 import { paintWing, wingRooms } from './home-wing.js';
+import { MODELS } from './models.js';
 
 const HALF_WIDTH = 8.8;
 const HALF_DEPTH = 5.9;
 const RADIUS = 0.23;
+const WALL_H = 2.6;     // full-height walls: home life is seen from over your shoulder
+const WALK_SPEED = 3.1; // metres per second
+const NEON = { pink: '#ff3fd2', cyan: '#36f3ff', amber: '#ffb347', violet: '#9b5cff' };
 
 export class HomeView {
   constructor(world, state) {
     this.world = world;
     this.position = state.life?.position || { ...HOME_SPAWN };
     this.obstacles = [];
+    this.walls = [];
+    this.camYaw = 0; this.camPitch = 0.22; this.camDist = world.aspect < 0.8 ? 2.35 : 2.05; this.camReady = false;
     this.stationLabels = new Map();
     this.stations = HOME_STATIONS.map(station => ({ ...station }));
     this.annex = wingRooms(HOUSING_ROOMS[state.home] || []);
@@ -46,10 +52,65 @@ export class HomeView {
       target.add(item);
       return item;
     };
-    const wall = (x, z, w, d, color, height = 0.81) => {
-      box(x, z, w, d, height, color, 0.02, true);
-      box(x, z, w + 0.085, d + 0.085, 0.055, '#ead0ad', height + 0.02);
-      box(x, z, w + 0.032, d + 0.032, 0.12, '#695166', 0.02);
+    // A Polyfork model fitted to a w×d footprint (or a height), standing at (x, z).
+    const model = (key, x, z, { w, d, h, rot = 0, y = 0, collide = false } = {}) => {
+      const entry = MODELS.get(key);
+      if (!entry) return null;
+      const quarter = Math.abs(Math.round(rot / (Math.PI / 2))) % 2 === 1;
+      const sx = quarter ? entry.size.z : entry.size.x, sz = quarter ? entry.size.x : entry.size.z;
+      const fits = [w && w / sx, d && d / sz, h && h / entry.size.y].filter(Boolean);
+      const obj = world.model(key, new THREE.Vector3(x, y, z), { scale: fits.length ? Math.min(...fits) : 1, rotY: rot });
+      target.add(obj);
+      if (collide) this.obstacles.push({ x, z, w: w ?? sx, d: d ?? sz });
+      return obj;
+    };
+    const top = obj => obj ? obj.userData.footprint.y : 0;
+    const wall = (x, z, w, d, color) => {
+      const body = box(x, z, w, d, WALL_H, color, 0.02, true);
+      this.walls.push(body);
+      box(x, z, w + 0.06, d + 0.06, 0.06, '#2b1d45', WALL_H - 0.04);
+      box(x, z, w + 0.032, d + 0.032, 0.14, '#3b2552', 0.02);
+    };
+    // Neon tube along a wall: bright enough to bloom.
+    const neon = (x, z, w, d, color, y = WALL_H - 0.16) => {
+      const tube = box(x, z, w, d, 0.04, color, y, false, true);
+      tube.material = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(2.2) });
+      tube.castShadow = false;
+      return tube;
+    };
+    const light = (x, z, color, intensity = 6, y = WALL_H - 0.35, range = 7) => {
+      const l = new THREE.PointLight(color, intensity, range, 1.7);
+      l.position.set(x, y, z); target.add(l);
+      return l;
+    };
+    // Procedural 80s electronics: a wood-veneer CRT and a beige PC.
+    const crt = (x, z, y, width, rot = 0, screen = '#5fd8ff') => {
+      const g = new THREE.Group();
+      const shell = new THREE.Mesh(new THREE.BoxGeometry(width, width * 0.78, width * 0.85), new THREE.MeshLambertMaterial({ color: '#4a3326' }));
+      shell.position.y = width * 0.39;
+      const bezel = new THREE.Mesh(new THREE.BoxGeometry(width * 0.92, width * 0.7, 0.02), new THREE.MeshLambertMaterial({ color: '#1d1a24' }));
+      bezel.position.set(0, width * 0.4, width * 0.43);
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.7, width * 0.52), new THREE.MeshBasicMaterial({ color: new THREE.Color(screen).multiplyScalar(1.6) }));
+      glass.position.set(-width * 0.06, width * 0.42, width * 0.441);
+      for (const m of [shell, bezel]) { m.castShadow = true; m.receiveShadow = true; }
+      g.add(shell, bezel, glass);
+      g.position.set(x, y, z); g.rotation.y = rot;
+      target.add(g);
+      return g;
+    };
+    const beigePC = (x, z, y, rot = 0) => {
+      const g = new THREE.Group();
+      const beige = new THREE.MeshLambertMaterial({ color: '#d9cdb0' });
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.16, 0.5), beige); tower.position.y = 0.08;
+      const mon = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.46), beige); mon.position.set(0, 0.38, -0.02);
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.28), new THREE.MeshBasicMaterial({ color: new THREE.Color('#39ff8f').multiplyScalar(1.3) }));
+      screen.position.set(0, 0.39, 0.211);
+      const kb = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.035, 0.19), beige); kb.position.set(0, 0.02, 0.42);
+      for (const m of [tower, mon, kb]) { m.castShadow = true; m.receiveShadow = true; }
+      g.add(tower, mon, screen, kb);
+      g.position.set(x, y, z); g.rotation.y = rot;
+      target.add(g);
+      return g;
     };
     const mat = (x, z, w, d, color, border) => {
       box(x, z, w, d, 0.026, border, 0.017);
@@ -62,10 +123,10 @@ export class HomeView {
       }
       this.obstacles.push({ x, z, w, d });
     };
-    const roomLabel = (text, x, z) => world.label(text, new THREE.Vector3(x, 0.1, z), 'home-room-label');
+    const roomLabel = (text, x, z) => { const l = world.label(text, new THREE.Vector3(x, 2.05, z), 'home-room-label'); l.maxDist = 6.5; return l; };
 
     // The cutaway floor has distinct room finishes and low interior walls.
-    box(0, 0.06, 18.43, 12.52, 0.34, '#30263d', -0.36);
+    box(0, 0.06, 18.43, 12.52, 0.34, '#1c1430', -0.36);
     box(0, 0, 17.85, 11.95, 0.13, '#ae7a61', -0.13);
     for (let row = 0; row < 16; row++) {
       const z = -5.62 + row * 0.75;
@@ -97,80 +158,56 @@ export class HomeView {
     wall(4.37, -1.57, 1.82, 0.14, '#81919a');
     wall(7.79, -1.57, 1.94, 0.14, '#81919a');
     for (const [x, z, span] of [[-6.57, -5.75, 2.25], [0.04, -5.75, 2.19], [-7.1, -1.45, 1.08]]) {
-      box(x, z, span, 0.094, 0.7, '#4b435f', 0.79);
-      box(x, z + 0.06, span - 0.12, 0.055, 0.57, '#6d88ad', 0.85, false, true);
-      box(x, z + 0.092, span - 0.14, 0.06, 0.14, '#d99688', 0.87, false, true);
-      box(x, z + 0.113, 0.07, 0.047, 0.59, linen, 0.85);
-      box(x, z + 0.095, span + 0.18, 0.24, 0.07, linen, 0.77);
+      box(x, z, span, 0.094, 1.0, '#2a1b3f', 1.0);
+      box(x, z + 0.06, span - 0.12, 0.055, 0.42, '#ff7aa8', 1.48, false, true);
+      box(x, z + 0.062, span - 0.12, 0.055, 0.46, '#5a2c8c', 1.04, false, true);
+      box(x, z + 0.092, span - 0.14, 0.06, 0.1, '#ffbe6b', 1.42, false, true);
+      box(x, z + 0.113, 0.07, 0.047, 0.88, '#c9b8e6', 1.06);
+      box(x, z + 0.095, span + 0.18, 0.24, 0.07, '#c9b8e6', 0.98);
     }
 
     // Bedroom.
     mat(-4.3, -3.43, 2.26, 2.52, '#735983', '#ba97b2');
-    box(-6.82, -4.12, 2.06, 2.89, 0.30, walnut, 0.03, true);
-    box(-6.82, -4.15, 2.00, 2.78, 0.31, linen, 0.31);
-    box(-6.82, -3.72, 2.05, 1.92, 0.14, '#647ea6', 0.58);
-    box(-6.82, -3.08, 2.06, 0.32, 0.15, '#92a8c6', 0.58);
-    box(-6.82, -5.55, 2.18, 0.15, 1.0, wood, 0.03);
-    for (const x of [-7.31, -6.32]) box(x, -5.1, 0.72, 0.56, 0.2, '#fff3dc', 0.58);
-    box(-8.24, -4.70, 0.76, 0.71, 0.69, wood, 0.01, true);
-    box(-8.24, -4.68, 0.17, 0.15, 0.19, walnut, 0.69);
-    box(-8.24, -4.68, 0.36, 0.33, 0.30, lamp, 0.88, false, true);
-    box(-3.16, -5.19, 1.29, 0.85, 0.96, '#836668', 0.01, true);
-    for (const y of [0.26, 0.57, 0.82]) box(-3.16, -4.75, 0.33, 0.061, 0.06, '#d4a777', y);
+    model('home_bed', -6.82, -4.12, { w: 2.06, d: 2.89, collide: true });
+    const nightstand = model('home_sidetable', -8.24, -4.70, { w: 0.7, d: 0.66, collide: true });
+    model('lightbulb', -8.24, -4.72, { h: 0.5, y: top(nightstand) });
+    model('home_wardrobe', -3.16, -5.19, { w: 1.29, d: 0.85, collide: true });
     roomLabel('BEDROOM', -5.55, -2.15);
 
     // Kitchen.
-    box(0.02, -5.25, 3.34, 0.79, 0.87, '#596d77', 0.019, true);
-    box(0.02, -5.25, 3.45, 0.91, 0.13, linen, 0.88);
-    for (const x of [-1.05, -0.34, 0.38, 1.09]) box(x, -4.83, 0.34, 0.05, 0.063, '#d0a972', 0.69);
-    box(-0.69, -5.2, 0.71, 0.56, 0.018, '#5c7887', 1.02);
-    box(-0.69, -5.46, 0.10, 0.13, 0.29, '#b4d0d4', 1.02);
-    box(1.08, -5.23, 0.76, 0.67, 0.03, '#554c66', 1.02);
-    for (const dx of [-0.20, 0.20]) for (const dz of [-0.17, 0.17]) box(1.08 + dx, -5.23 + dz, 0.23, 0.22, 0.018, '#987172', 1.053);
-    box(2.54, -4.86, 1.33, 1.35, 2.08, '#c6c2bd', 0.03, true);
-    box(2.55, -4.16, 0.12, 0.065, 1.30, '#8c7d83', 0.47);
-    box(2.54, -4.17, 1.22, 0.056, 0.046, '#8c7d83', 1.46);
-    box(2.79, -4.126, 0.24, 0.034, 0.26, '#f2dd93', 1.18);
-    table(1.03, -0.38, 1.72, 0.99, 0.72, '#936350');
+    model('home_kitchen_sink', -0.75, -5.25, { w: 1.85, d: 0.8 });
+    model('home_oven', 0.75, -5.3, { w: 0.68, d: 0.7 });
+    model('home_island', 1.45, -5.25, { w: 0.9, d: 0.8 });
+    model('home_microwave', 1.45, -5.3, { w: 0.55, y: 0.9 });
+    this.obstacles.push({ x: 0.02, z: -5.25, w: 3.34, d: 0.79 });
+    model('home_fridge', 2.54, -4.95, { w: 1.0, d: 0.95, collide: true });
+    model('home_table', 1.03, -0.38, { w: 1.72, d: 0.99, collide: true });
+    for (const dx of [-0.5, 0.5]) for (const [dz, rot] of [[-0.75, 0], [0.75, Math.PI]]) model('home_barstool', 1.03 + dx, -0.38 + dz, { h: 0.8, rot });
     sprite('coffee', 0.69, -0.44, 0.71, 0.32);
+    model('home_boombox', 1.5, -0.4, { w: 0.5, y: 0.74, rot: -0.4 });
     box(1.32, -0.43, 0.26, 0.34, 0.061, '#e8d5ab', 0.72);
     roomLabel('KITCHEN', 0.58, -2.36);
 
     // Bathroom.
-    box(4.14, -5.21, 1.09, 0.92, 0.84, '#7a909f', 0.018, true);
-    box(4.14, -5.22, 1.18, 1.00, 0.12, linen, 0.86);
-    box(4.14, -5.18, 0.66, 0.45, 0.024, '#9cbac7', 0.99);
-    box(5.17, -4.98, 0.71, 0.98, 0.46, '#e1dfd7', 0.019, true);
-    box(5.17, -4.68, 0.74, 0.59, 0.14, '#f2e7d8', 0.45);
-    box(5.17, -5.28, 0.74, 0.35, 0.47, '#d0d5d3', 0.45);
-    box(5.17, -4.66, 0.41, 0.33, 0.023, '#a9b3be', 0.59);
-    box(7.5, -4.83, 1.97, 1.71, 0.17, '#d9d6d0', 0.018, true);
-    box(7.5, -4.82, 1.71, 1.42, 0.04, '#9cb4bf', 0.19);
-    box(8.41, -4.82, 0.13, 1.73, 1.48, '#7396a8', 0.2);
-    box(7.62, -5.55, 1.65, 0.12, 1.45, '#8cb3c0', 0.2);
-    box(8.13, -5.36, 0.29, 0.24, 0.12, '#dedbd2', 1.49);
+    model('home_basin', 4.14, -5.21, { w: 1.0, d: 0.75, collide: true });
+    model('home_toilet', 5.17, -5.05, { w: 0.6, d: 0.85, collide: true });
+    model('home_shower', 7.55, -4.83, { w: 1.7, d: 1.6, collide: true });
     mat(6.91, -3.0, 1.31, 0.67, '#638992', '#abc4be');
     roomLabel('BATHROOM', 6.25, -1.96);
 
     // Living room.
     mat(-5.78, 2.26, 5.11, 4.0, rug.color, rug.trim);
     for (const z of [0.5, 0.65, 3.87, 4.02]) box(-5.78, z, 4.83, 0.039, 0.01, rug.trim, 0.052);
-    box(-5.65, 3.88, 3.39, 1.32, 0.42, '#3f6770', 0.061, true);
-    box(-5.65, 4.37, 3.46, 0.35, 0.84, '#48757c', 0.13);
-    for (const x of [-6.68, -5.65, -4.62]) box(x, 3.74, 0.96, 0.89, 0.19, '#619399', 0.48);
-    for (const x of [-7.31, -3.99]) box(x, 3.86, 0.27, 1.28, 0.58, '#527f89', 0.14);
-    box(-6.76, 4.08, 0.57, 0.22, 0.39, '#dba88e', 0.62);
-    box(-4.65, 4.08, 0.53, 0.23, 0.34, '#e3cc96', 0.64);
-    table(-6.42, 1.98, 1.53, 0.88, 0.46);
-    box(-6.44, 1.89, 0.37, 0.25, 0.04, '#c99277', 0.46);
-    box(-6.45, -0.96, 2.65, 0.61, 0.52, wood, 0.02, true);
-    box(-6.49, -1.12, 1.97, 0.17, 1.09, edge, 0.57);
-    box(-6.49, -1.02, 1.74, 0.05, 0.87, '#7696b5', 0.68, false, true);
-    box(-6.49, -0.989, 1.74, 0.016, 0.23, '#3f658d', 0.69, false, true);
-    box(-6.91, -0.976, 0.64, 0.014, 0.054, '#e5d0b8', 0.78, false, true);
-    box(-7.63, 3.47, 0.65, 0.65, 0.076, walnut, 0.03);
-    box(-7.63, 3.47, 0.085, 0.085, 1.73, walnut, 0.103);
-    box(-7.63, 3.47, 0.50, 0.47, 0.35, '#f7be86', 1.58, false, true);
+    model(MODELS.has('home_lounge') ? 'home_lounge' : 'home_sofa', -5.65, 3.88, { w: 3.2, d: 1.3, rot: Math.PI, collide: true });
+    model('home_coffeetable', -6.42, 1.98, { w: 1.4, d: 0.8, collide: true });
+    const media = model('home_sidetable', -6.45, -0.96, { w: 2.2, d: 0.6, collide: true });
+    crt(-6.3, -0.98, top(media), 0.95);
+    model('home_turntable', -7.25, -0.98, { w: 0.5, y: top(media) });
+    model('home_boombox', -5.4, -0.98, { w: 0.6, y: top(media) });
+    model('home_arcade', -8.2, 5.0, { h: 1.75, rot: Math.PI / 2, collide: true });
+    model('neon_window', -8.68, 1.9, { w: 1.1, y: 1.15, rot: Math.PI / 2 });
+    model('home_floorlamp', -7.63, 3.47, { h: 1.9, collide: true });
+    model(MODELS.has('home_shellchair') ? 'home_shellchair' : 'home_armchair', -3.4, 1.4, { w: 0.9, d: 0.9, rot: -Math.PI / 2, collide: true });
     sprite('plant', -7.97, -0.68, 0.04, 1.1);
     if (palette?.plants === 'shelf') {
       box(-8.38, 2.05, 0.64, 1.62, 0.11, wood, 0.75);
@@ -181,28 +218,41 @@ export class HomeView {
 
     // Workspace and entry.
     mat(5.82, 2.35, 4.34, 4.88, '#675a7c', '#af8fb0');
-    table(5.73, 0.79, 3.58, 1.32, 0.98, '#b48063');
-    box(5.23, 0.59, 1.16, 0.20, 0.73, '#3a324a', 1.12);
-    box(5.23, 0.70, 1.02, 0.038, 0.57, '#6ea5ad', 1.20, false, true);
-    box(5.06, 0.736, 0.48, 0.015, 0.041, '#c8e4c0', 1.50, false, true);
-    for (const y of [1.34, 1.43]) box(5.12, 0.741, 0.61, 0.013, 0.033, '#9cce9e', y, false, true);
-    box(5.24, 0.84, 0.55, 0.42, 0.051, '#4f485e', 0.98);
-    box(5.35, 1.17, 0.90, 0.26, 0.047, '#ded1be', 0.981);
-    sprite(state.gear?.includes('coffee') ? 'coffee' : 'book', 6.89, 0.87, 0.98, 0.53);
-    if (state.gear?.includes('monitor')) sprite('tv', 6.18, 0.66, 1.03, 0.76);
-    if (state.gear?.includes('homelab')) sprite('server', 7.92, 0.72, 0.03, 1.44);
-    if (state.gear?.includes('laptop2')) sprite('laptop', 6.26, 0.82, 0.98, 0.54);
-    sprite('officechair', 5.67, 2.03, 0.04, state.gear?.includes('chair') ? 1.24 : 1.02);
-    state.certs?.slice(0, 4).forEach((_, i) => sprite('medal', 7.96, 1.56 + i * 0.67, 1, 0.52));
-    if (state.villain) sprite('mask', 7.11, 0.36, 1, 0.71);
+    const desk = model('home_desk', 5.73, 0.79, { w: 3.3, d: 1.25, collide: true });
+    const deskTop = top(desk) || 0.98;
+    beigePC(5.25, 0.62, deskTop);
+    model('home_bookshelf', 7.95, -0.3, { w: 0.5, d: 1.4, rot: -Math.PI / 2, collide: true });
+    sprite(state.gear?.includes('coffee') ? 'coffee' : 'book', 6.89, 0.87, deskTop, 0.3);
+    if (state.gear?.includes('monitor')) crt(6.35, 0.55, deskTop, 0.55, -0.3, '#ff6ad5');
+    if (state.gear?.includes('homelab')) model('server', 7.92, 1.2, { h: 1.3, collide: true });
+    if (state.gear?.includes('laptop2')) model('laptop', 4.45, 0.82, { w: 0.42, y: deskTop, rot: 0.3 });
+    model('officechair', 5.4, 1.85, { h: state.gear?.includes('chair') ? 1.15 : 0.98, rot: Math.PI });
+    state.certs?.slice(0, 4).forEach((_, i) => model('medal', 7.96, 1.56 + i * 0.67, { h: 0.32, y: 1, rot: -Math.PI / 2 }));
+    if (state.villain) model('mask', 7.0, 0.4, { h: 0.45, y: deskTop });
     mat(0.19, 5.25, 1.89, 0.89, '#785660', '#c08e79');
-    box(1.8, 5.51, 1.07, 0.49, 0.67, wood, 0.02, true);
-    box(1.71, 5.46, 0.37, 0.19, 0.047, '#e5b475', 0.7);
-    box(1.52, 5.46, 0.14, 0.23, 0.051, '#6b566b', 0.704);
+    const entry = model('home_sidetable', 1.8, 5.45, { w: 1.0, d: 0.5, collide: true });
+    model('roller_skate', -1.05, 5.4, { w: 0.32, rot: 0.6 });
+    model('roller_skate', -0.75, 5.5, { w: 0.32, rot: 0.2 });
+    model('kms', 1.75, 5.45, { w: 0.3, y: top(entry) });
     box(0.19, 5.96, 2.37, 0.3, 0.09, '#e5b28b', -0.08);
     roomLabel('WORKSPACE', 6.70, 4.55);
 
     this.stations.push(...paintWing(this.annex, { box, wall, table, mat, sprite, roomLabel }));
+
+    // Neon trim and room lighting: dusk outside, tubes and lamps inside.
+    neon(-5.0, -5.73, 7.2, 0.04, NEON.violet); light(-5.4, -3.6, '#b38cff', 5);
+    neon(0.3, -5.73, 4.6, 0.04, NEON.amber); light(0.6, -3.4, '#ffcf8f', 6);
+    neon(6.1, -5.73, 4.8, 0.04, NEON.cyan); light(6.0, -3.6, '#9ff3ff', 4.5);
+    neon(-8.66, 2.1, 0.04, 6.8, NEON.pink); light(-5.6, 2.2, '#ff7ad9', 7, WALL_H - 0.35, 8);
+    neon(8.66, 2.6, 0.04, 5.6, NEON.cyan); light(5.8, 2.3, '#7af1ff', 6, WALL_H - 0.35, 8);
+    light(0.2, 3.6, '#ffd8a8', 4, WALL_H - 0.35, 7);
+    for (const room of this.footprint) {
+      const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(room.right - room.left + 0.4, room.bottom - room.top + 0.4),
+        new THREE.MeshLambertMaterial({ color: '#3a2660', emissive: '#140a28' }));
+      ceiling.rotation.x = Math.PI / 2;
+      ceiling.position.set((room.left + room.right) / 2, WALL_H + 0.02, (room.top + room.bottom) / 2);
+      target.add(ceiling);
+    }
     const legacy = state.life?.legacy;
     const resident = legacy?.relationship;
     if (resident?.stage === 'married' || (resident && legacy.bonds[resident.id].lastTime === state.day)) {
@@ -226,7 +276,8 @@ export class HomeView {
       ring.rotation.x = -Math.PI / 2;
       ring.position.set(station.x, 0.077, station.z);
       target.add(ring);
-      const label = world.label(station.name, new THREE.Vector3(station.x, 0.2, station.z), 'home-marker');
+      const label = world.label(station.name, new THREE.Vector3(station.x, 1.15, station.z), 'home-marker');
+      label.maxDist = 6;
       label.el.dataset.station = station.id;
       this.stationLabels.set(station.id, { ring, el: label.el });
     }
@@ -244,36 +295,53 @@ export class HomeView {
       new THREE.MeshBasicMaterial({ color: '#30243e', transparent: true, opacity: 0.47 }));
     this.shadow.rotation.x = -Math.PI / 2;
     target.add(this.shadow);
-    this.player = sprite(state.villain ? 'hacker' : 'player', this.position.x, this.position.z, 0.06, 1.31);
+    this.player = sprite(state.villain ? 'hacker' : 'player', this.position.x, this.position.z, 0.02, 1.45);
+    this.player.rotation.y = Math.PI;
+    this.camYaw = Number.isFinite(state.life?.cameraYaw) ? state.life.cameraYaw : 0;
     this.walk = 0;
     this.update(0, 0, 0);
+    this.fit();
   }
 
-  fit() {
-    const compact = this.world.viewW < 755;
-    const right = Math.min(this.rightEdge + .4, -9.2 + (compact ? 23 : 32));
-    const corners = [];
-    for (const x of [-9.2, right]) for (const z of [-6.1, 6.1]) for (const y of [0, 1.7]) {
-      corners.push(new THREE.Vector3(x, y, z));
-    }
-    this.world.fit(corners, { left: compact ? 12 : 176, right: 18, top: compact ? 125 : 72,
-      bottom: compact ? 162 : 104, yaw: 0.28, pitch: 0.9, pad: 1.02 });
-    this.cameraOrigin = this.world.camTarget.x;
-    this.cameraFollowStart = (right - 9.2) / 2;
-    this.cameraTravel = Math.max(0, this.rightEdge + .4 - right);
-    this.followPlayer(1);
+  // ── third-person camera ──
+  // Close over the right shoulder. Yaw is a full circle; drag or the touch pad orbits it.
+  // The camera slides in rather than clip through walls.
+  orbit(yaw, pitch) {
+    this.camYaw -= yaw;
+    this.camPitch = Math.max(-0.72, Math.min(1.15, this.camPitch + pitch));
   }
-
-  followPlayer(amount) {
-    if (!this.cameraTravel) return;
-    const camera = this.world.camTarget;
-    const offset = Math.max(0, Math.min(this.cameraTravel, this.position.x - this.cameraFollowStart));
-    const next = camera.x + (this.cameraOrigin + offset - camera.x) * amount;
-    if (Math.abs(next - camera.x) > .001) {
-      camera.x = next;
-      this.world.updateCamera();
-    }
+  look(dx, dy) { this.orbit(dx * 0.012, dy * 0.009); }
+  zoomCamera(factor) { this.camDist = Math.max(1.02, Math.min(3.4, this.camDist * factor)); }
+  forward() { return new THREE.Vector3(-Math.sin(this.camYaw), 0, -Math.cos(this.camYaw)); }
+  right() { return new THREE.Vector3(Math.cos(this.camYaw), 0, -Math.sin(this.camYaw)); }
+  fit() { this.camReady = false; this.updateCamera(1); }
+  updateCamera(dt) {
+    const cam = this.world.persp;
+    const f = this.forward(), r = this.right();
+    const head = new THREE.Vector3(this.position.x, 1.5, this.position.z);
+    const shoulder = head.clone().addScaledVector(r, 0.58);
+    const want = shoulder.clone()
+      .addScaledVector(f, -Math.cos(this.camPitch) * this.camDist)
+      .add(new THREE.Vector3(0, Math.sin(this.camPitch) * this.camDist + 0.15, 0));
+    // Keep the camera on this side of any wall.
+    const dir = want.clone().sub(shoulder);
+    const len = dir.length();
+    this.ray ||= new THREE.Raycaster();
+    this.ray.set(shoulder, dir.normalize());
+    this.ray.far = len;
+    const hit = this.ray.intersectObjects(this.walls, false)[0];
+    if (hit) want.copy(shoulder).addScaledVector(dir, Math.max(0.35, hit.distance - 0.22));
+    want.y = Math.min(want.y, 2.45);
+    const k = this.camReady ? 1 - Math.exp(-dt * 12) : 1;
+    cam.position.lerp(want, k);
+    const look = shoulder.clone().addScaledVector(f, 2.6).add(new THREE.Vector3(0, -0.12 - this.camPitch * 0.35, 0));
+    this.lookAt ||= look.clone();
+    this.lookAt.lerp(look, k);
+    cam.lookAt(this.lookAt);
+    cam.updateMatrixWorld();
+    this.camReady = true;
   }
+  followPlayer() {}
 
   canStand(x, z) {
     const onFloor = (px, pz) => this.footprint.some(room => px >= room.left && px <= room.right && pz >= room.top && pz <= room.bottom);
@@ -297,9 +365,8 @@ export class HomeView {
     const wx = x - this.position.x, wz = z - this.position.z;
     const distance = Math.hypot(wx, wz);
     if (distance < 0.12) return null;
-    const yaw = this.world.yaw;
-    return { horizontal: (Math.cos(yaw) * wx - Math.sin(yaw) * wz) / distance,
-      vertical: (Math.sin(yaw) * wx + Math.cos(yaw) * wz) / distance, distance };
+    const f = this.forward(), r = this.right();
+    return { horizontal: (r.x * wx + r.z * wz) / distance, vertical: -(f.x * wx + f.z * wz) / distance, distance };
   }
 
   stationNear(x, z, within = 1.0) {
@@ -326,22 +393,33 @@ export class HomeView {
 
   update(horizontal, vertical, dt) {
     const { position, player } = this;
-    const speed = 4.15 * dt / Math.max(1, Math.hypot(horizontal, vertical));
-    const yaw = this.world.yaw;
-    const dx = (Math.cos(yaw) * horizontal + Math.sin(yaw) * vertical) * speed;
-    const dz = (-Math.sin(yaw) * horizontal + Math.cos(yaw) * vertical) * speed;
+    // Input is relative to where the camera looks: up = forward, right = strafe right.
+    const speed = WALK_SPEED * dt / Math.max(1, Math.hypot(horizontal, vertical));
+    const f = this.forward(), r = this.right();
+    const dx = (r.x * horizontal - f.x * vertical) * speed;
+    const dz = (r.z * horizontal - f.z * vertical) * speed;
     const oldX = position.x;
     const oldZ = position.z;
     if (this.canStand(position.x + dx, position.z)) position.x += dx;
     if (this.canStand(position.x, position.z + dz)) position.z += dz;
     const walking = position.x !== oldX || position.z !== oldZ;
     this.walk = walking ? this.walk + dt : 0;
-    if (horizontal) player.scale.x = horizontal > 0 ? 1.31 : -1.31;
-    player.userData.baseY = 0.715 + (walking ? Math.abs(Math.sin(this.walk * 19)) * 0.10 : 0);
+    if (player.isSprite) {
+      if (horizontal) player.scale.x = horizontal > 0 ? 1.31 : -1.31;
+      player.userData.baseY = 0.715 + (walking ? Math.abs(Math.sin(this.walk * 19)) * 0.10 : 0);
+    } else {
+      // Turn smoothly toward the direction of travel and swap the walk/idle clip.
+      if (walking) {
+        const want = Math.atan2(position.x - oldX, position.z - oldZ);
+        let delta = want - player.rotation.y;
+        delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+        player.rotation.y += delta * Math.min(1, dt * 14);
+      }
+      player.userData.play?.(walking ? 'Walk' : 'Idle', 0.18);
+    }
     player.position.x = position.x;
     player.position.z = position.z;
     this.shadow.position.set(position.x, 0.078, position.z);
-    this.followPlayer(Math.min(1, dt * 7));
     const selected = this.nearest();
     if (selected !== this.selected) {
       for (const [id, marker] of this.stationLabels) {

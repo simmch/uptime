@@ -1,30 +1,42 @@
-// Three.js world: a chunky low-res pixel diorama.
+// Three.js world: a low-poly diorama built from Polyfork models.
 // The office and architecture dioramas share a renderer with the opening drive.
 import * as THREE from 'three';
 import { spriteMaterial } from './atlas.js';
+import { hasModel, instance, tint, MODELS } from './models.js';
+import { retroComposer } from './fx.js';
 import { HomeView } from './home.js';
 import { COMPONENT, LAYERS } from '../data/components.js';
 import { REGION, PROVIDERS } from '../data/regions.js';
 
-const PIXEL = 2.5; // render-resolution divisor → bigger pixels
 const LAYER_ORDER = Object.fromEntries(LAYERS.map((l, i) => [l.id, i]));
 
 export class World {
   constructor(container, labelRoot) {
     this.container = container;
     this.labelRoot = labelRoot;
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(1);
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    const touch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, touch ? 1.5 : 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.domElement.className = 'world-canvas';
     container.appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#0d1018');
     this.scene.fog = new THREE.Fog('#0d1018', 60, 120);
-    this.camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 400);
+    // The work diorama uses an isometric (orthographic) camera; home life is third person.
+    this.ortho = this.camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 400);
+    this.persp = new THREE.PerspectiveCamera(60, 1, 0.05, 220);
     this.camTarget = new THREE.Vector3(0, 0, 0);
     this.camDist = 60; this.zoom = 1; this.yaw = Math.PI / 4; this.pitch = 0.62;
-    this.scene.add(new THREE.HemisphereLight('#bcd4ff', '#2a1d14', 1.2));
-    const sun = new THREE.DirectionalLight('#fff3dd', 1.4); sun.position.set(20, 40, 15); this.scene.add(sun);
+    this.hemi = new THREE.HemisphereLight('#dfe9ff', '#3a2c33', 1.6); this.scene.add(this.hemi);
+    const sun = this.sun = new THREE.DirectionalLight('#fff1dc', 2.2);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(touch ? 1024 : 2048, touch ? 1024 : 2048);
+    sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+    this.scene.add(sun, sun.target);
+    this.animated = [];
     this.office = new THREE.Group(); this.arch = new THREE.Group(); this.fx = new THREE.Group();
     this.scene.add(this.office, this.arch, this.fx);
     this.pickables = []; this.nodeObjs = {}; this.labels = []; this.regionMeta = {}; this.bobbers = [];
@@ -33,6 +45,7 @@ export class World {
     this.mode = 'office';
     this.drive = null;
     this.clock = new THREE.Clock();
+    this.fx = retroComposer(this.renderer, this.scene, this.camera);
     this.initPackets();
     this.bindInput();
     this.resize();
@@ -52,37 +65,39 @@ export class World {
   resize() {
     const w = this.container.clientWidth || window.innerWidth, h = this.container.clientHeight || window.innerHeight;
     const rotated = this.viewW && Math.abs(w - this.viewW) >= 70;
-    this.renderer.setSize(Math.ceil(w / PIXEL), Math.ceil(h / PIXEL), false);
+    this.renderer.setSize(w, h, false);
+    this.fx?.setSize(w, h);
     this.aspect = w / h; this.viewW = w; this.viewH = h;
+    this.persp.aspect = this.aspect; this.persp.fov = this.aspect < 0.8 ? 74 : 60; this.persp.updateProjectionMatrix();
     if (this.mode === 'office' && this.homeView) this.homeView.fit();
     else if (this.mode === 'arch' && rotated && document.documentElement.classList.contains('touch')) this.fitArchitecture();
     else this.updateCamera();
   }
   updateCamera() {
     const size = 9 / this.zoom;
-    this.camera.left = -size * this.aspect; this.camera.right = size * this.aspect; this.camera.top = size; this.camera.bottom = -size;
+    this.ortho.left = -size * this.aspect; this.ortho.right = size * this.aspect; this.ortho.top = size; this.ortho.bottom = -size;
     const off = new THREE.Vector3(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch)).multiplyScalar(this.camDist);
-    this.camera.position.copy(this.camTarget).add(off);
-    this.camera.lookAt(this.camTarget);
-    this.camera.updateProjectionMatrix();
+    this.ortho.position.copy(this.camTarget).add(off);
+    this.ortho.lookAt(this.camTarget);
+    this.ortho.updateProjectionMatrix();
   }
   // Fit a set of world points into the free screen area between UI panels.
   fit(points, { left = 80, right = 20, top = 70, bottom = 20, yaw = Math.PI / 4, pitch = 0.62, pad = 1.08 } = {}) {
     this.yaw = yaw; this.pitch = pitch;
     const c = new THREE.Vector3(); for (const p of points) c.add(p); c.multiplyScalar(1 / Math.max(1, points.length));
-    this.camTarget.copy(c); this.zoom = 1; this.updateCamera(); this.camera.updateMatrixWorld();
+    this.camTarget.copy(c); this.zoom = 1; this.updateCamera(); this.ortho.updateMatrixWorld();
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    const inv = this.camera.matrixWorldInverse;
+    const inv = this.ortho.matrixWorldInverse;
     for (const p of points) { const v = p.clone().applyMatrix4(inv); minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x); minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y); }
     const Wa = Math.max(200, this.viewW - left - right), Ha = Math.max(200, this.viewH - top - bottom);
     const size = Math.max(((maxX - minX) * this.viewW) / (2 * this.aspect * Wa), ((maxY - minY) * this.viewH) / (2 * Ha), 3) * pad;
     this.zoom = Math.min(2.4, Math.max(0.12, 9 / size));
-    this.updateCamera(); this.camera.updateMatrixWorld();
+    this.updateCamera(); this.ortho.updateMatrixWorld();
     const pxPerUnit = this.viewH / (2 * size);
     const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
     const wantX = (left + Wa / 2 - this.viewW / 2) / pxPerUnit, wantY = -(top + Ha / 2 - this.viewH / 2) / pxPerUnit;
-    const r = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
-    const u = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+    const r = new THREE.Vector3().setFromMatrixColumn(this.ortho.matrixWorld, 0);
+    const u = new THREE.Vector3().setFromMatrixColumn(this.ortho.matrixWorld, 1);
     // move the target so the points' center lands at the free-area center (project the camera-up shift onto the ground plane)
     const groundUp = new THREE.Vector3(u.x, 0, u.z).normalize().multiplyScalar(1 / Math.max(0.2, Math.sin(this.pitch)));
     this.camTarget.addScaledVector(r, cx - wantX).addScaledVector(groundUp, cy - wantY);
@@ -233,19 +248,23 @@ export class World {
     this.camera.updateMatrixWorld();
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hits = this.raycaster.intersectObjects(this.pickables, false);
-    const sprite = hits.find(h => h.object.userData.kind === 'node');
-    const h = sprite || hits[0];
-    return h ? h.object.userData : null;
+    const data = hit => { let o = hit.object; while (o && !o.userData.kind) o = o.parent; return o?.userData || null; };
+    const node = hits.find(hit => data(hit)?.kind === 'node');
+    const h = node || hits[0];
+    return h ? data(h) : null;
   }
 
   clearGroup(g, discardMaterials = false) {
     const materials = new Set();
     for (const child of [...g.children]) {
       g.remove(child);
-      child.traverse(object => {
+      const visit = object => {
+        if (object.userData.model) return; // shared with the model cache
         if (object.geometry && !object.isSprite) object.geometry.dispose();
         if (discardMaterials && object.isMesh) materials.add(object.material);
-      });
+        object.children.forEach(visit);
+      };
+      visit(child);
     }
     for (const material of materials) material.dispose();
   }
@@ -256,7 +275,35 @@ export class World {
     const l = { el, pos: pos.clone(), minZoom: /\b(node|az|muted)\b/.test(cls) && !cls.includes('sel') ? 0.6 : 0 }; this.labels.push(l); return l;
   }
 
-  sprite(key, pos, scale = 1, userData = null) {
+  // Shadow camera covers the area around `center`.
+  setShadowArea(center, radius) {
+    const c = this.sun.shadow.camera;
+    c.left = c.bottom = -radius; c.right = c.top = radius; c.near = 1; c.far = radius * 4 + 60;
+    c.updateProjectionMatrix();
+    this.sun.target.position.copy(center);
+    this.sun.position.copy(center).add(new THREE.Vector3(radius * 0.55, radius * 1.6 + 20, radius * 0.9));
+  }
+
+  // A 3D model (or a flat sprite when no model exists) standing at `pos`, roughly `scale` units big.
+  model(key, pos, opts = {}) {
+    const obj = instance(key, opts);
+    if (!obj) return null;
+    obj.position.copy(pos);
+    if (obj.userData.tick) this.animated.push(obj);
+    return obj;
+  }
+  sprite(key, pos, scale = 1, userData = null, { pixel = false } = {}) {
+    // Placed architecture parts stay as pixel drawings; those match the real components.
+    if (!pixel && hasModel(key)) {
+      const skinned = MODELS.get(key).skinned;
+      const k = this.mode === 'arch' ? 1.35 : 1.1;
+      const obj = this.model(key, pos, skinned ? { height: scale * 1.2, rotY: this.yaw } : { fit: scale * k, rotY: this.yaw });
+      if (userData) {
+        Object.assign(obj.userData, userData);
+        obj.traverse(o => { if (o.isMesh) this.pickables.push(o); });
+      }
+      return obj;
+    }
     const s = new THREE.Sprite(spriteMaterial(key));
     s.position.copy(pos); s.position.y += scale * 0.5; s.scale.set(scale, scale, scale);
     s.center.set(0.5, 0.5);
@@ -282,7 +329,10 @@ export class World {
     this.arch.visible = false;
     this.packets.mesh.count = 0;
     this.scene.background.set(state.villain ? '#180d1d' : '#1e192b');
+    this.animated = [];
+    this.camera = this.persp;
     this.homeView = new HomeView(this, state);
+    this.setShadowArea(new THREE.Vector3((this.homeView.rightEdge - 8.8) / 2, 0, 0), Math.max(12, (this.homeView.rightEdge + 9) / 2 + 2));
     this.homeView.fit();
   }
 
@@ -326,39 +376,40 @@ export class World {
 
   buildArch(design, { job = null, keepCamera = false, selected = null } = {}) {
     this.mode = 'arch';
-    this.clearGroup(this.arch); this.clearLabels(); this.pickables = []; this.bobbers = []; this.nodeObjs = {}; this.regionMeta = {};
+    this.camera = this.ortho; this.homeView = null;
+    this.clearGroup(this.arch); this.clearLabels(); this.pickables = []; this.bobbers = []; this.nodeObjs = {}; this.regionMeta = {}; this.animated = [];
     this.office.visible = false; this.arch.visible = true;
-    this.scene.background = new THREE.Color('#0b0f17');
+    this.scene.background = new THREE.Color('#140a26');
     this.design = design; this.job = job;
     const L = this.L = this.layout(design);
     // ground grid
-    const grid = new THREE.GridHelper(200, 100, '#1c2638', '#141b28'); grid.position.y = -0.01; this.arch.add(grid);
+    const grid = new THREE.GridHelper(200, 100, '#ff3fbf', '#3b1f6b'); grid.material.transparent = true; grid.material.opacity = 0.55; grid.position.y = -0.01; this.arch.add(grid);
     // users
     const geos = job?.req?.geo || { NA: 1 };
     for (const [g, p] of Object.entries(L.users)) {
       if (!geos[g]) continue;
-      this.arch.add(this.sprite('user', p, 1.1));
-      this.arch.add(this.sprite('user', p.clone().add(new THREE.Vector3(0.7, 0, 0.4)), 0.8));
+      this.arch.add(this.sprite('user', p, 1.45));
+      this.arch.add(this.sprite('person_customer', p.clone().add(new THREE.Vector3(0.8, 0, 0.5)), 1.3));
       this.label(`${g} users ${Math.round(geos[g] * 100)}%`, p.clone().add(new THREE.Vector3(0, 1.6, 0)), 'muted');
     }
     this.label('INTERNET', new THREE.Vector3(-13, 2.8, 6), 'title');
-    this.hackerSprite = this.sprite('hacker', L.hacker, 1.3); this.hackerSprite.visible = false; this.arch.add(this.hackerSprite);
+    this.hackerSprite = this.sprite('hacker', L.hacker, 1.6); this.hackerSprite.visible = false; this.arch.add(this.hackerSprite);
     // edge column marker
     this.label('EDGE / GLOBAL', new THREE.Vector3(-8, 2.4, 4.6), 'title');
     if (Object.values(design.nodes).some(n => COMPONENT[n.id].scope === 'global' && COMPONENT[n.id].layer !== 'edge')) this.label('CONTROL PLANE · SECURITY · OPS', new THREE.Vector3(-6, 1.6, 6.2), 'title');
     // regions
     for (const r of design.regions) {
       const o = L.regions[r]; const prov = REGION[r].provider;
-      const plat = this.box(11, 0.3, 9.6, '#1a2232', o.clone().add(new THREE.Vector3(0, 0.15, 0)));
+      const plat = this.box(11, 0.3, 9.6, '#251846', o.clone().add(new THREE.Vector3(0, 0.15, 0)));
       plat.userData = { kind: 'region', region: r }; this.pickables.push(plat); this.arch.add(plat);
-      const rim = this.box(11.2, 0.12, 9.8, PROVIDERS[prov].color, o.clone().add(new THREE.Vector3(0, 0.02, 0))); this.arch.add(rim);
-      const band = this.box(10.4, 0.06, 2.9, '#202b3f', o.clone().add(new THREE.Vector3(0, 0.33, 2.7))); band.userData = { kind: 'region', region: r }; this.pickables.push(band); this.arch.add(band);
+      const rim = this.box(11.2, 0.12, 9.8, PROVIDERS[prov].color, o.clone().add(new THREE.Vector3(0, 0.02, 0)), { emissive: PROVIDERS[prov].color, emissiveIntensity: 2.2 }); this.arch.add(rim);
+      const band = this.box(10.4, 0.06, 2.9, '#2e1f57', o.clone().add(new THREE.Vector3(0, 0.33, 2.7))); band.userData = { kind: 'region', region: r }; this.pickables.push(band); this.arch.add(band);
       this.label(r, o.clone().add(new THREE.Vector3(0, 0.4, -5.3)), 'region');
       this.label(REGION[r].name, o.clone().add(new THREE.Vector3(0, 0.4, -4.6)), 'muted');
       const azMeshes = [];
       for (let a = 0; a < 3; a++) {
         const t = L.azs[r + a];
-        const tile = this.box(3.1, 0.12, 4.2, '#26324a', t.clone());
+        const tile = this.box(3.1, 0.12, 4.2, '#35246a', t.clone());
         tile.userData = { kind: 'az', region: r, az: a }; this.pickables.push(tile); this.arch.add(tile); azMeshes.push(tile);
         this.label(`AZ ${r}${'abc'[a]}`, t.clone().add(new THREE.Vector3(0, 0.2, 2.35)), 'az');
       }
@@ -368,8 +419,8 @@ export class World {
     for (const n of design.nodes) {
       const p = L.nodes[n.uid]; if (!p) continue;
       const c = COMPONENT[n.id];
-      const scale = c.layer === 'compute' || c.layer === 'db' ? 1.05 : 0.9;
-      const s = this.sprite(c.sprite, p, scale, { kind: 'node', uid: n.uid });
+      const scale = c.layer === 'compute' || c.layer === 'db' ? 1.25 : 1.1;
+      const s = this.sprite(c.sprite, p, scale, { kind: 'node', uid: n.uid }, { pixel: true });
       this.arch.add(s);
       // count badge for multi-instance compute
       const count = n.id === 'ec2' ? n.cfg.count : n.id === 'asg' ? `${n.cfg.min}-${n.cfg.max}` : n.id === 'eks' ? `${n.cfg.nodesMin}n` : n.id === 'rds' && n.cfg.multiAZ ? 'M-AZ' : null;
@@ -380,6 +431,10 @@ export class World {
     // static wires
     this.wires = new THREE.Group(); this.arch.add(this.wires);
     this.drawWires();
+    const area = L.bounds.clone().expandByPoint(new THREE.Vector3(-14, 0, 8));
+    const ctr = area.getCenter(new THREE.Vector3()); ctr.y = 0;
+    this.setShadowArea(ctr, area.getSize(new THREE.Vector3()).length() / 2 + 2);
+    this.arch.traverse(o => { if (o.isMesh && !o.userData.noShadow) { o.receiveShadow = true; } });
     if (!keepCamera) this.fitArchitecture();
   }
 
@@ -464,8 +519,8 @@ export class World {
     // regions & AZ health
     for (const [r, meta] of Object.entries(this.regionMeta)) {
       const down = !!sim.regionDown[r] || sim.suspended;
-      meta.plat.material.color.set(down ? '#4a1515' : '#1a2232');
-      meta.azMeshes.forEach((t, a) => { const dn = down || sim.azDown[r][a] > sim.t; t.material.color.set(dn ? '#5c1a1a' : '#26324a'); });
+      meta.plat.material.color.set(down ? '#5a1d2d' : '#251846');
+      meta.azMeshes.forEach((t, a) => { const dn = down || sim.azDown[r][a] > sim.t; t.material.color.set(dn ? '#7a2238' : '#35246a'); });
       const wantFire = down ? 3 : sim.azDown[r].filter(v => v > sim.t).length;
       while (meta.fire.length < wantFire) {
         const a = sim.azDown[r].findIndex(v => v > sim.t);
@@ -480,7 +535,8 @@ export class World {
       const rt = sim.rt[node.uid]; let bad = false;
       if (node.region && (sim.regionDown[node.region] || (node.az != null && sim.azDown[node.region][node.az] > sim.t))) bad = true;
       if (rt?.stuck) bad = true;
-      sprite.material = spriteMaterial(COMPONENT[node.id].sprite, bad ? { color: 0x664444 } : {});
+      if (sprite.isSprite) sprite.material = spriteMaterial(COMPONENT[node.id].sprite, bad ? { color: 0x664444 } : {});
+      else if (sprite.userData.bad !== bad) { sprite.userData.bad = bad; tint(sprite, bad ? 0x9a4a4a : null); }
     }
   }
 
@@ -518,20 +574,25 @@ export class World {
     const t = this.clock.elapsedTime;
     this.drive?.updateFrame(dt, this.aspect);
     if (this.drive) {
-      this.renderer.render(this.drive.scene, this.drive.camera);
+      this.fx.setView(this.drive.scene, this.drive.camera);
+      this.fx.render(dt);
       return;
     }
     this.homeTick?.(dt);
+    this.animated = this.animated.filter(o => { if (!o.parent) return false; if (o.visible) o.userData.tick(dt); return true; });
     for (const s of this.bobbers) if (s.parent) s.position.y = s.userData.baseY + Math.sin(t * 2 + s.userData.phase) * 0.04;
     if (this.mode === 'arch') { this.spawnFromMetrics(dt); this.updatePackets(dt); }
-    this.renderer.render(this.scene, this.camera);
+    this.homeView?.updateCamera?.(dt);
+    this.fx.setView(this.scene, this.camera);
+    this.fx.render(dt);
     // project labels
     const v = new THREE.Vector3();
     for (const l of this.labels) {
       v.copy(l.pos).project(this.camera);
       const x = (v.x * 0.5 + 0.5) * this.viewW, y = (-v.y * 0.5 + 0.5) * this.viewH;
       l.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-      l.el.style.display = v.z > 1 || x < -100 || x > this.viewW + 100 || (l.minZoom && this.zoom < l.minZoom) ? 'none' : '';
+      const far = l.maxDist && this.camera.position.distanceTo(l.pos) > l.maxDist;
+      l.el.style.display = far || v.z > 1 || x < -100 || x > this.viewW + 100 || (l.minZoom && this.zoom < l.minZoom) ? 'none' : '';
     }
   }
 }

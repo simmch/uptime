@@ -83,6 +83,7 @@ registerScreen('ending', {
         h('h1', {}, E.title),
         h('p', {}, `${S.name} — ${titleOf()}`),
         h('div', { class: 'grid2' }, h('div', {}, `Level ${S.level}`), h('div', {}, `Day ${S.day}`), h('div', {}, `Earned ${money(S.stats.earned)}`), h('div', {}, `Contracts ${S.stats.jobs}`), h('div', {}, `Certifications ${S.certs.length}`), h('div', {}, `Skills ${S.skills.length}`)),
+        h('p', { class: 'small muted' }, '3D models by Polyfork (polyfork.dev), CC BY 4.0.'),
         h('p', { class: 'muted' }, 'Everything you used to win is real. VPCs, Multi-AZ, Aurora Global, Kubernetes, Terraform, WAF, SCPs, the 7 Rs. Go build things — the good kind.'),
         h('div', { class: 'row gap center' },
           h('button', { class: 'btn big', onclick: () => newGamePlus() }, 'New Game+ (keep skills & certs)'),

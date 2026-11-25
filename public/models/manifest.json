@@ -1,0 +1,997 @@
+{
+ "server": {
+  "id": "small-server-rack-8ae0a4",
+  "title": "Small Server Rack",
+  "source": "https://polyfork.dev/asset/small-server-rack-8ae0a4"
+ },
+ "vm": {
+  "id": "desk-monitor-32cfce",
+  "title": "Desk Monitor",
+  "source": "https://polyfork.dev/asset/desk-monitor-32cfce"
+ },
+ "laptop": {
+  "id": "laptop-e775ba",
+  "title": "Laptop",
+  "source": "https://polyfork.dev/asset/laptop-e775ba"
+ },
+ "terminal": {
+  "id": "desk-keyboard-6cd4d9",
+  "title": "Desk Keyboard",
+  "source": "https://polyfork.dev/asset/desk-keyboard-6cd4d9"
+ },
+ "lambda": {
+  "id": "site-generator-298792",
+  "title": "Site Generator",
+  "source": "https://polyfork.dev/asset/site-generator-298792"
+ },
+ "container": {
+  "id": "cargo-container-fd73bc",
+  "title": "Cargo Container",
+  "source": "https://polyfork.dev/asset/cargo-container-fd73bc"
+ },
+ "k8s": {
+  "id": "ship-s-wheel-7e7426",
+  "title": "Ship's Wheel",
+  "source": "https://polyfork.dev/asset/ship-s-wheel-7e7426"
+ },
+ "pod": {
+  "id": "cargo-crate-9afc44",
+  "title": "Cargo Crate",
+  "source": "https://polyfork.dev/asset/cargo-crate-9afc44"
+ },
+ "lb": {
+  "id": "signpost-0bf523",
+  "title": "Signpost",
+  "source": "https://polyfork.dev/asset/signpost-0bf523"
+ },
+ "asg": {
+  "id": "locker-bank-1784b8",
+  "title": "Locker Bank",
+  "source": "https://polyfork.dev/asset/locker-bank-1784b8"
+ },
+ "db": {
+  "id": "fuel-tank-3a0111",
+  "title": "Fuel Tank",
+  "source": "https://polyfork.dev/asset/fuel-tank-3a0111"
+ },
+ "nosql": {
+  "id": "filing-cabinet-f8a251",
+  "title": "Filing Cabinet",
+  "source": "https://polyfork.dev/asset/filing-cabinet-f8a251"
+ },
+ "cache": {
+  "id": "pedestal-drawer-unit-cbeab3",
+  "title": "Pedestal Drawer Unit",
+  "source": "https://polyfork.dev/asset/pedestal-drawer-unit-cbeab3"
+ },
+ "queue": {
+  "id": "paper-stack-713359",
+  "title": "Paper Stack",
+  "source": "https://polyfork.dev/asset/paper-stack-713359"
+ },
+ "stream": {
+  "id": "pipe-run-280a0d",
+  "title": "Pipe run",
+  "source": "https://polyfork.dev/asset/pipe-run-280a0d"
+ },
+ "bucket": {
+  "id": "maintenance-bucket-f1c8e8",
+  "title": "Maintenance Bucket",
+  "source": "https://polyfork.dev/asset/maintenance-bucket-f1c8e8"
+ },
+ "disk": {
+  "id": "signal-cable-drum-88e3f8",
+  "title": "Signal Cable Drum",
+  "source": "https://polyfork.dev/asset/signal-cable-drum-88e3f8"
+ },
+ "archive": {
+  "id": "tambour-storage-cupboard-cebe40",
+  "title": "Tambour Storage Cupboard",
+  "source": "https://polyfork.dev/asset/tambour-storage-cupboard-cebe40"
+ },
+ "cdn": {
+  "id": "antenna-mast-0954b0",
+  "title": "Antenna Mast",
+  "source": "https://polyfork.dev/asset/antenna-mast-0954b0"
+ },
+ "dns": {
+  "id": "office-directory-totem-619d45",
+  "title": "Office Directory Totem",
+  "source": "https://polyfork.dev/asset/office-directory-totem-619d45"
+ },
+ "waf": {
+  "id": "checkpoint-barrier-pole-59c197",
+  "title": "Checkpoint Barrier Pole",
+  "source": "https://polyfork.dev/asset/checkpoint-barrier-pole-59c197"
+ },
+ "ddos": {
+  "id": "tower-shield-09ff7d",
+  "title": "Tower Shield",
+  "source": "https://polyfork.dev/asset/tower-shield-09ff7d"
+ },
+ "iam": {
+  "id": "lanyard-and-badge-941f5a",
+  "title": "Lanyard And Badge",
+  "source": "https://polyfork.dev/asset/lanyard-and-badge-941f5a"
+ },
+ "kms": {
+  "id": "chest-key-458007",
+  "title": "Chest Key",
+  "source": "https://polyfork.dev/asset/chest-key-458007"
+ },
+ "secrets": {
+  "id": "iron-vault-safe-8b8f29",
+  "title": "Iron Vault Safe",
+  "source": "https://polyfork.dev/asset/iron-vault-safe-8b8f29"
+ },
+ "vpc": {
+  "id": "chain-link-fence-run-6c3d68",
+  "title": "Chain-Link Fence Run",
+  "source": "https://polyfork.dev/asset/chain-link-fence-run-6c3d68"
+ },
+ "nat": {
+  "id": "turnstile-bank-9294b4",
+  "title": "Turnstile Bank",
+  "source": "https://polyfork.dev/asset/turnstile-bank-9294b4"
+ },
+ "monitor": {
+  "id": "vital-signs-monitor-632560",
+  "title": "Vital Signs Monitor",
+  "source": "https://polyfork.dev/asset/vital-signs-monitor-632560"
+ },
+ "logs": {
+  "id": "waybill-clipboard-05bd4a",
+  "title": "Waybill Clipboard",
+  "source": "https://polyfork.dev/asset/waybill-clipboard-05bd4a"
+ },
+ "terraform": {
+  "id": "plan-tube-b1d1ac",
+  "title": "Plan Tube",
+  "source": "https://polyfork.dev/asset/plan-tube-b1d1ac"
+ },
+ "git": {
+  "id": "oak-tree-50ee7c",
+  "title": "Oak Tree",
+  "source": "https://polyfork.dev/asset/oak-tree-50ee7c"
+ },
+ "cicd": {
+  "id": "x-ray-baggage-conveyor-b3d1cc",
+  "title": "X-Ray Baggage Conveyor",
+  "source": "https://polyfork.dev/asset/x-ray-baggage-conveyor-b3d1cc"
+ },
+ "globe": {
+  "id": "classroom-globe-16a96e",
+  "title": "Classroom Globe",
+  "source": "https://polyfork.dev/asset/classroom-globe-16a96e"
+ },
+ "building": {
+  "id": "office-tower-1538cc",
+  "title": "Office Tower",
+  "source": "https://polyfork.dev/asset/office-tower-1538cc"
+ },
+ "user": {
+  "id": "passenger-ac425a",
+  "title": "Passenger",
+  "source": "https://polyfork.dev/asset/passenger-ac425a"
+ },
+ "hacker": {
+  "id": "student-in-a-hoodie-7c8223",
+  "title": "Student in a Hoodie",
+  "source": "https://polyfork.dev/asset/student-in-a-hoodie-7c8223"
+ },
+ "bot": {
+  "id": "combat-robot-17a943",
+  "title": "Combat Robot",
+  "source": "https://polyfork.dev/asset/combat-robot-17a943"
+ },
+ "virus": {
+  "id": "miasma-bladder-fungus-3f6439",
+  "title": "Miasma Bladder Fungus",
+  "source": "https://polyfork.dev/asset/miasma-bladder-fungus-3f6439"
+ },
+ "bug": {
+  "id": "stag-beetle-base",
+  "title": "Stag beetle",
+  "source": "https://polyfork.dev/asset/stag-beetle-base"
+ },
+ "coin": {
+  "id": "gold-coin-29afc1",
+  "title": "Gold Coin",
+  "source": "https://polyfork.dev/asset/gold-coin-29afc1"
+ },
+ "coins": {
+  "id": "gold-coin-stack-a9ef52",
+  "title": "Gold Coin Stack",
+  "source": "https://polyfork.dev/asset/gold-coin-stack-a9ef52"
+ },
+ "star": {
+  "id": "starfish-772749",
+  "title": "Starfish",
+  "source": "https://polyfork.dev/asset/starfish-772749"
+ },
+ "house": {
+  "id": "two-story-house-40f6dc",
+  "title": "Two-Story House",
+  "source": "https://polyfork.dev/asset/two-story-house-40f6dc"
+ },
+ "shop": {
+  "id": "corner-shop-5aec8c",
+  "title": "Corner Shop",
+  "source": "https://polyfork.dev/asset/corner-shop-5aec8c"
+ },
+ "skyscraper": {
+  "id": "monolith-office-tower-422420",
+  "title": "Monolith Office Tower",
+  "source": "https://polyfork.dev/asset/monolith-office-tower-422420"
+ },
+ "factory": {
+  "id": "brick-depot-warehouse-3dd642",
+  "title": "Brick Depot Warehouse",
+  "source": "https://polyfork.dev/asset/brick-depot-warehouse-3dd642"
+ },
+ "castle": {
+  "id": "castle-gatehouse-4ed5c6",
+  "title": "Castle Gatehouse",
+  "source": "https://polyfork.dev/asset/castle-gatehouse-4ed5c6"
+ },
+ "robot": {
+  "id": "service-robot-93f82e",
+  "title": "Service Robot",
+  "source": "https://polyfork.dev/asset/service-robot-93f82e"
+ },
+ "skull": {
+  "id": "sugar-skull-b5a8b0",
+  "title": "Sugar Skull",
+  "source": "https://polyfork.dev/asset/sugar-skull-b5a8b0"
+ },
+ "fire": {
+  "id": "campfire-4390aa",
+  "title": "Campfire",
+  "source": "https://polyfork.dev/asset/campfire-4390aa"
+ },
+ "bomb": {
+  "id": "smoke-bomb-d0322b",
+  "title": "Smoke Bomb",
+  "source": "https://polyfork.dev/asset/smoke-bomb-d0322b"
+ },
+ "envelope": {
+  "id": "mailbox-8e36e8",
+  "title": "Mailbox",
+  "source": "https://polyfork.dev/asset/mailbox-8e36e8"
+ },
+ "trophy": {
+  "id": "trophy-cabinet-e963ac",
+  "title": "Trophy Cabinet",
+  "source": "https://polyfork.dev/asset/trophy-cabinet-e963ac"
+ },
+ "heart": {
+  "id": "wall-first-aid-box-95c087",
+  "title": "Wall First Aid Box",
+  "source": "https://polyfork.dev/asset/wall-first-aid-box-95c087"
+ },
+ "cloud": {
+  "id": "towering-cloud-2e00f1",
+  "title": "Low-poly cloud",
+  "source": "https://polyfork.dev/asset/towering-cloud-2e00f1"
+ },
+ "crown": {
+  "id": "crown-a294ce",
+  "title": "Crown",
+  "source": "https://polyfork.dev/asset/crown-a294ce"
+ },
+ "megaphone": {
+  "id": "speaker-post-e1503d",
+  "title": "Speaker-post",
+  "source": "https://polyfork.dev/asset/speaker-post-e1503d"
+ },
+ "antenna": {
+  "id": "rooftop-antenna-mast-6e4944",
+  "title": "Rooftop Antenna Mast",
+  "source": "https://polyfork.dev/asset/rooftop-antenna-mast-6e4944"
+ },
+ "player": {
+  "id": "student-with-backpack-65d2b4",
+  "title": "Student with Backpack",
+  "source": "https://polyfork.dev/asset/student-with-backpack-65d2b4"
+ },
+ "mentor": {
+  "id": "professor-14dc4d",
+  "title": "Professor",
+  "source": "https://polyfork.dev/asset/professor-14dc4d"
+ },
+ "book": {
+  "id": "lefthand-item-30f012",
+  "title": "Hardback Book",
+  "source": "https://polyfork.dev/asset/lefthand-item-30f012"
+ },
+ "map": {
+  "id": "campaign-map-scroll-d4a382",
+  "title": "Campaign Map Scroll",
+  "source": "https://polyfork.dev/asset/campaign-map-scroll-d4a382"
+ },
+ "potion": {
+  "id": "potion-bottle-099ad7",
+  "title": "Potion Bottle",
+  "source": "https://polyfork.dev/asset/potion-bottle-099ad7"
+ },
+ "chest": {
+  "id": "legendary-chest-4abed4",
+  "title": "Treasure Chest",
+  "source": "https://polyfork.dev/asset/legendary-chest-4abed4"
+ },
+ "wrench": {
+  "id": "wrench-390c5f",
+  "title": "Wrench",
+  "source": "https://polyfork.dev/asset/wrench-390c5f"
+ },
+ "clock": {
+  "id": "wall-clock-0c555c",
+  "title": "Wall Clock",
+  "source": "https://polyfork.dev/asset/wall-clock-0c555c"
+ },
+ "eye": {
+  "id": "eye-in-the-sky-23fe89",
+  "title": "Eye-in-the-Sky Camera Dome",
+  "source": "https://polyfork.dev/asset/eye-in-the-sky-23fe89"
+ },
+ "flag": {
+  "id": "flag-pole-015e53",
+  "title": "Flag Pole",
+  "source": "https://polyfork.dev/asset/flag-pole-015e53"
+ },
+ "lightbulb": {
+  "id": "table-lamp-e25998",
+  "title": "Table Lamp",
+  "source": "https://polyfork.dev/asset/table-lamp-e25998"
+ },
+ "battery": {
+  "id": "battery-bank-b4d362",
+  "title": "Battery Bank",
+  "source": "https://polyfork.dev/asset/battery-bank-b4d362"
+ },
+ "phone": {
+  "id": "righthand-item-cf3cdf",
+  "title": "Desk Phone Handset",
+  "source": "https://polyfork.dev/asset/righthand-item-cf3cdf"
+ },
+ "truck": {
+  "id": "delivery-truck-a9537e",
+  "title": "Delivery Truck",
+  "source": "https://polyfork.dev/asset/delivery-truck-a9537e"
+ },
+ "cake": {
+  "id": "layer-cake-45d142",
+  "title": "Layer Cake",
+  "source": "https://polyfork.dev/asset/layer-cake-45d142"
+ },
+ "bank": {
+  "id": "classical-bank-04954e",
+  "title": "Classical Bank",
+  "source": "https://polyfork.dev/asset/classical-bank-04954e"
+ },
+ "hospital": {
+  "id": "field-hospital-marquee-8cf79b",
+  "title": "Field Hospital Marquee",
+  "source": "https://polyfork.dev/asset/field-hospital-marquee-8cf79b"
+ },
+ "gamepad": {
+  "id": "arcade-console-ec27c2",
+  "title": "Arcade Console",
+  "source": "https://polyfork.dev/asset/arcade-console-ec27c2"
+ },
+ "rocket": {
+  "id": "toy-rocket-e51241",
+  "title": "Toy Rocket",
+  "source": "https://polyfork.dev/asset/toy-rocket-e51241"
+ },
+ "mask": {
+  "id": "hooded-lantern-b60021",
+  "title": "Hooded Lantern",
+  "source": "https://polyfork.dev/asset/hooded-lantern-b60021"
+ },
+ "suit": {
+  "id": "audience-gentleman-base",
+  "title": "Audience gentleman",
+  "source": "https://polyfork.dev/asset/audience-gentleman-base"
+ },
+ "door": {
+  "id": "door-set-single-swing-d50024",
+  "title": "Door Set",
+  "source": "https://polyfork.dev/asset/door-set-single-swing-d50024"
+ },
+ "tower": {
+  "id": "clock-tower-752081",
+  "title": "Clock Tower",
+  "source": "https://polyfork.dev/asset/clock-tower-752081"
+ },
+ "router": {
+  "id": "speakerphone-puck-e3eb0d",
+  "title": "Speakerphone Puck",
+  "source": "https://polyfork.dev/asset/speakerphone-puck-e3eb0d"
+ },
+ "radio": {
+  "id": "field-radio-set-b6f3fd",
+  "title": "Field Radio Set",
+  "source": "https://polyfork.dev/asset/field-radio-set-b6f3fd"
+ },
+ "satellite": {
+  "id": "comm-satellite-fdc2cd",
+  "title": "Comm Satellite",
+  "source": "https://polyfork.dev/asset/comm-satellite-fdc2cd"
+ },
+ "box": {
+  "id": "cardboard-delivery-box-59cc68",
+  "title": "Cardboard Delivery Box",
+  "source": "https://polyfork.dev/asset/cardboard-delivery-box-59cc68"
+ },
+ "tv": {
+  "id": "flat-screen-television-97b1f3",
+  "title": "Flat Screen Television",
+  "source": "https://polyfork.dev/asset/flat-screen-television-97b1f3"
+ },
+ "crate": {
+  "id": "timber-crate-ba0739",
+  "title": "Timber Crate",
+  "source": "https://polyfork.dev/asset/timber-crate-ba0739"
+ },
+ "pipe": {
+  "id": "pipe-junction-5b146a",
+  "title": "Pipe junction",
+  "source": "https://polyfork.dev/asset/pipe-junction-5b146a"
+ },
+ "plug": {
+  "id": "toggle-switch-31233d",
+  "title": "Toggle Switch",
+  "source": "https://polyfork.dev/asset/toggle-switch-31233d"
+ },
+ "cable": {
+  "id": "cable-spaghetti-bundle-d670a1",
+  "title": "Cable Spaghetti Bundle",
+  "source": "https://polyfork.dev/asset/cable-spaghetti-bundle-d670a1"
+ },
+ "stopwatch": {
+  "id": "sand-timer-6acb1b",
+  "title": "Sand Timer",
+  "source": "https://polyfork.dev/asset/sand-timer-6acb1b"
+ },
+ "telescope": {
+  "id": "fisheye-camcorder-6a3d64",
+  "title": "Fisheye Camcorder",
+  "source": "https://polyfork.dev/asset/fisheye-camcorder-6a3d64"
+ },
+ "ninja": {
+  "id": "human-assassin-base",
+  "title": "Human assassin",
+  "source": "https://polyfork.dev/asset/human-assassin-base"
+ },
+ "thief": {
+  "id": "forest-bandit-base",
+  "title": "Sharp-Eared Forest Bandit",
+  "source": "https://polyfork.dev/asset/forest-bandit-base"
+ },
+ "knight": {
+  "id": "armoured-knight-hero-07121f",
+  "title": "Armoured Knight Hero",
+  "source": "https://polyfork.dev/asset/armoured-knight-hero-07121f"
+ },
+ "wizard": {
+  "id": "wizard-miniature-032ef6",
+  "title": "Wizard Miniature",
+  "source": "https://polyfork.dev/asset/wizard-miniature-032ef6"
+ },
+ "spider": {
+  "id": "giant-yard-spider-70ddce",
+  "title": "Giant Yard Spider",
+  "source": "https://polyfork.dev/asset/giant-yard-spider-70ddce"
+ },
+ "slime": {
+  "id": "water-blob-f266b8",
+  "title": "Water Blob",
+  "source": "https://polyfork.dev/asset/water-blob-f266b8"
+ },
+ "ghost": {
+  "id": "hanging-cheesecloth-ghosts-c569cf",
+  "title": "Hanging Cheesecloth Ghosts",
+  "source": "https://polyfork.dev/asset/hanging-cheesecloth-ghosts-c569cf"
+ },
+ "portal": {
+  "id": "portal-60d5e6",
+  "title": "Portal",
+  "source": "https://polyfork.dev/asset/portal-60d5e6"
+ },
+ "lighthouse": {
+  "id": "striped-river-lighthouse-90d74d",
+  "title": "Striped River Lighthouse",
+  "source": "https://polyfork.dev/asset/striped-river-lighthouse-90d74d"
+ },
+ "bridge": {
+  "id": "sky-bridge-span-26fcde",
+  "title": "Sky Bridge Span",
+  "source": "https://polyfork.dev/asset/sky-bridge-span-26fcde"
+ },
+ "warning": {
+  "id": "site-safety-sign-board-5408d5",
+  "title": "Site Safety Sign Board",
+  "source": "https://polyfork.dev/asset/site-safety-sign-board-5408d5"
+ },
+ "trash": {
+  "id": "metal-trash-can-f57043",
+  "title": "Metal Trash Can",
+  "source": "https://polyfork.dev/asset/metal-trash-can-f57043"
+ },
+ "lockbox": {
+  "id": "chest-padlock-7dc32e",
+  "title": "Chest Padlock",
+  "source": "https://polyfork.dev/asset/chest-padlock-7dc32e"
+ },
+ "flashdrive": {
+  "id": "content-card-1e37ea",
+  "title": "Content Card",
+  "source": "https://polyfork.dev/asset/content-card-1e37ea"
+ },
+ "notebook": {
+  "id": "lab-notebook-e60f7a",
+  "title": "Lab Notebook",
+  "source": "https://polyfork.dev/asset/lab-notebook-e60f7a"
+ },
+ "officechair": {
+  "id": "office-chair-7c9874",
+  "title": "Office Chair",
+  "source": "https://polyfork.dev/asset/office-chair-7c9874"
+ },
+ "coffee": {
+  "id": "coffee-cup-90be67",
+  "title": "Coffee Cup",
+  "source": "https://polyfork.dev/asset/coffee-cup-90be67"
+ },
+ "plant": {
+  "id": "potted-shrub-43bd21",
+  "title": "Potted Shrub",
+  "source": "https://polyfork.dev/asset/potted-shrub-43bd21"
+ },
+ "vending": {
+  "id": "vending-machine-471c29",
+  "title": "Vending Machine",
+  "source": "https://polyfork.dev/asset/vending-machine-471c29"
+ },
+ "notice": {
+  "id": "public-notice-board-d21c89",
+  "title": "Public Notice Board",
+  "source": "https://polyfork.dev/asset/public-notice-board-d21c89"
+ },
+ "boss": {
+  "id": "touchline-manager-13a94b",
+  "title": "Touchline Manager",
+  "source": "https://polyfork.dev/asset/touchline-manager-13a94b"
+ },
+ "police": {
+  "id": "police-officer-1cc379",
+  "title": "Police Officer",
+  "source": "https://polyfork.dev/asset/police-officer-1cc379"
+ },
+ "oldman": {
+  "id": "elderly-audience-member-base",
+  "title": "Elderly audience member",
+  "source": "https://polyfork.dev/asset/elderly-audience-member-base"
+ },
+ "robotsoldier": {
+  "id": "combat-robot-17a943",
+  "title": "Combat Robot",
+  "source": "https://polyfork.dev/asset/combat-robot-17a943"
+ },
+ "workerbot": {
+  "id": "liquid-handling-robot-c42a98",
+  "title": "Liquid Handling Robot",
+  "source": "https://polyfork.dev/asset/liquid-handling-robot-c42a98"
+ },
+ "chain": {
+  "id": "anchor-chain-run-d58343",
+  "title": "Anchor Chain Run",
+  "source": "https://polyfork.dev/asset/anchor-chain-run-d58343"
+ },
+ "warehouse": {
+  "id": "dock-warehouse-bf0967",
+  "title": "Dock Warehouse",
+  "source": "https://polyfork.dev/asset/dock-warehouse-bf0967"
+ },
+ "cart": {
+  "id": "luggage-trolley-0bb740",
+  "title": "Luggage Trolley",
+  "source": "https://polyfork.dev/asset/luggage-trolley-0bb740"
+ },
+ "trucks": {
+  "id": "flatbed-delivery-lorry-571458",
+  "title": "Flatbed Delivery Lorry",
+  "source": "https://polyfork.dev/asset/flatbed-delivery-lorry-571458"
+ },
+ "ship": {
+  "id": "river-barge-9b9f3d",
+  "title": "River Barge",
+  "source": "https://polyfork.dev/asset/river-barge-9b9f3d"
+ },
+ "planet": {
+  "id": "classroom-globe-16a96e",
+  "title": "Classroom Globe",
+  "source": "https://polyfork.dev/asset/classroom-globe-16a96e"
+ },
+ "sun": {
+  "id": "sunflower-80ce15",
+  "title": "Sunflower",
+  "source": "https://polyfork.dev/asset/sunflower-80ce15"
+ },
+ "banknote": {
+  "id": "banded-cash-bundle-7da278",
+  "title": "Banded Cash Bundle",
+  "source": "https://polyfork.dev/asset/banded-cash-bundle-7da278"
+ },
+ "wallet": {
+  "id": "coin-pouch-be4dd8",
+  "title": "Coin Pouch",
+  "source": "https://polyfork.dev/asset/coin-pouch-be4dd8"
+ },
+ "calendar": {
+  "id": "wall-clock-0c555c",
+  "title": "Wall Clock",
+  "source": "https://polyfork.dev/asset/wall-clock-0c555c"
+ },
+ "medal": {
+  "id": "natural-20-trophy-plinth-c31c9c",
+  "title": "Natural 20 Trophy Plinth",
+  "source": "https://polyfork.dev/asset/natural-20-trophy-plinth-c31c9c"
+ },
+ "home_bed": {
+  "id": "bed-6e10e8",
+  "title": "Bed",
+  "source": "https://polyfork.dev/asset/bed-6e10e8"
+ },
+ "home_sofa": {
+  "id": "sofa-9c0e7e",
+  "title": "Sofa",
+  "source": "https://polyfork.dev/asset/sofa-9c0e7e"
+ },
+ "home_desk": {
+  "id": "office-desk-021eb3",
+  "title": "Office Desk",
+  "source": "https://polyfork.dev/asset/office-desk-021eb3"
+ },
+ "home_kitchen_sink": {
+  "id": "kitchen-sink-7ea438",
+  "title": "Kitchen Sink",
+  "source": "https://polyfork.dev/asset/kitchen-sink-7ea438"
+ },
+ "home_island": {
+  "id": "kitchen-island-47f4c8",
+  "title": "Kitchen Island",
+  "source": "https://polyfork.dev/asset/kitchen-island-47f4c8"
+ },
+ "home_fridge": {
+  "id": "fridge-freezer-fb9b5a",
+  "title": "Fridge Freezer",
+  "source": "https://polyfork.dev/asset/fridge-freezer-fb9b5a"
+ },
+ "home_oven": {
+  "id": "built-in-oven-housing-d292c6",
+  "title": "Built-In Oven Housing",
+  "source": "https://polyfork.dev/asset/built-in-oven-housing-d292c6"
+ },
+ "home_microwave": {
+  "id": "microwave-oven-7f60d4",
+  "title": "Microwave Oven",
+  "source": "https://polyfork.dev/asset/microwave-oven-7f60d4"
+ },
+ "home_toilet": {
+  "id": "toilet-2edbd9",
+  "title": "Toilet",
+  "source": "https://polyfork.dev/asset/toilet-2edbd9"
+ },
+ "home_shower": {
+  "id": "shower-enclosure-a50c16",
+  "title": "Shower Enclosure",
+  "source": "https://polyfork.dev/asset/shower-enclosure-a50c16"
+ },
+ "home_basin": {
+  "id": "classroom-sink-unit-26fe09",
+  "title": "Classroom Sink Unit",
+  "source": "https://polyfork.dev/asset/classroom-sink-unit-26fe09"
+ },
+ "home_table": {
+  "id": "dining-table-7af83a",
+  "title": "Dining Table",
+  "source": "https://polyfork.dev/asset/dining-table-7af83a"
+ },
+ "home_rug": {
+  "id": "area-rug-5c56e2",
+  "title": "Area Rug",
+  "source": "https://polyfork.dev/asset/area-rug-5c56e2"
+ },
+ "home_floorlamp": {
+  "id": "arc-floor-lamp-fa0b5f",
+  "title": "Arc Floor Lamp",
+  "source": "https://polyfork.dev/asset/arc-floor-lamp-fa0b5f"
+ },
+ "home_bookshelf": {
+  "id": "bookshelf-5e881a",
+  "title": "Bookshelf",
+  "source": "https://polyfork.dev/asset/bookshelf-5e881a"
+ },
+ "home_wardrobe": {
+  "id": "wardrobe-f3b2f2",
+  "title": "Wardrobe",
+  "source": "https://polyfork.dev/asset/wardrobe-f3b2f2"
+ },
+ "home_armchair": {
+  "id": "armchair-980c7c",
+  "title": "Armchair",
+  "source": "https://polyfork.dev/asset/armchair-980c7c"
+ },
+ "home_coffeetable": {
+  "id": "coffee-table-acc698",
+  "title": "Coffee Table",
+  "source": "https://polyfork.dev/asset/coffee-table-acc698"
+ },
+ "home_sidetable": {
+  "id": "side-table-2ea5c0",
+  "title": "Side Table",
+  "source": "https://polyfork.dev/asset/side-table-2ea5c0"
+ },
+ "home_keyboard": {
+  "id": "desk-keyboard-6cd4d9",
+  "title": "Desk Keyboard",
+  "source": "https://polyfork.dev/asset/desk-keyboard-6cd4d9"
+ },
+ "home_mouse": {
+  "id": "desk-mouse-2c7d42",
+  "title": "Desk Mouse",
+  "source": "https://polyfork.dev/asset/desk-mouse-2c7d42"
+ },
+ "home_whiteboard": {
+  "id": "whiteboard-ea98f7",
+  "title": "Whiteboard",
+  "source": "https://polyfork.dev/asset/whiteboard-ea98f7"
+ },
+ "home_dog": {
+  "id": "dog-base",
+  "title": "Dog",
+  "source": "https://polyfork.dev/asset/dog-base"
+ },
+ "home_cat": {
+  "id": "cat-base",
+  "title": "Cat",
+  "source": "https://polyfork.dev/asset/cat-base"
+ },
+ "home_toys": {
+  "id": "sack-of-toys-c53e9e",
+  "title": "Sack of Toys",
+  "source": "https://polyfork.dev/asset/sack-of-toys-c53e9e"
+ },
+ "home_barstool": {
+  "id": "bar-stool-0de3c8",
+  "title": "Bar Stool",
+  "source": "https://polyfork.dev/asset/bar-stool-0de3c8"
+ },
+ "car_town": {
+  "id": "wedge-coupe-80s-9f8b5e",
+  "title": "Wedge-coupe-80s",
+  "source": "https://polyfork.dev/asset/wedge-coupe-80s-9f8b5e"
+ },
+ "car_hatch": {
+  "id": "hatchback-80s-e95554",
+  "title": "Hatchback-80s",
+  "source": "https://polyfork.dev/asset/hatchback-80s-e95554"
+ },
+ "car_sedan": {
+  "id": "boxy-sedan-70s-7d55f7",
+  "title": "Boxy-sedan-70s",
+  "source": "https://polyfork.dev/asset/boxy-sedan-70s-7d55f7"
+ },
+ "street_lamp": {
+  "id": "street-lamp-29f365",
+  "title": "Street Lamp",
+  "source": "https://polyfork.dev/asset/street-lamp-29f365"
+ },
+ "tree_oak": {
+  "id": "oak-tree-50ee7c",
+  "title": "Oak Tree",
+  "source": "https://polyfork.dev/asset/oak-tree-50ee7c"
+ },
+ "tree_palm": {
+  "id": "palm-tree-a307da",
+  "title": "Palm Tree",
+  "source": "https://polyfork.dev/asset/palm-tree-a307da"
+ },
+ "building_apartment": {
+  "id": "apartment-block-6445af",
+  "title": "Apartment Block",
+  "source": "https://polyfork.dev/asset/apartment-block-6445af"
+ },
+ "building_slab": {
+  "id": "slab-apartment-block-1b02a2",
+  "title": "Slab Apartment Block",
+  "source": "https://polyfork.dev/asset/slab-apartment-block-1b02a2"
+ },
+ "building_tower": {
+  "id": "office-tower-1538cc",
+  "title": "Office Tower",
+  "source": "https://polyfork.dev/asset/office-tower-1538cc"
+ },
+ "building_monolith": {
+  "id": "monolith-office-tower-422420",
+  "title": "Monolith Office Tower",
+  "source": "https://polyfork.dev/asset/monolith-office-tower-422420"
+ },
+ "building_house": {
+  "id": "two-story-house-40f6dc",
+  "title": "Two-Story House",
+  "source": "https://polyfork.dev/asset/two-story-house-40f6dc"
+ },
+ "park_bench": {
+  "id": "park-bench-dc8b62",
+  "title": "Park Bench",
+  "source": "https://polyfork.dev/asset/park-bench-dc8b62"
+ },
+ "hvac": {
+  "id": "air-con-unit-9fadc2",
+  "title": "Air-Con Unit",
+  "source": "https://polyfork.dev/asset/air-con-unit-9fadc2"
+ },
+ "water_tower": {
+  "id": "water-tower-7eb7ec",
+  "title": "Water Tower",
+  "source": "https://polyfork.dev/asset/water-tower-7eb7ec"
+ },
+ "person_customer": {
+  "id": "cafe-customer-ca7e8e",
+  "title": "Cafe Customer",
+  "source": "https://polyfork.dev/asset/cafe-customer-ca7e8e"
+ },
+ "person_visitor": {
+  "id": "visitor-with-badge-1005a3",
+  "title": "Visitor With Badge",
+  "source": "https://polyfork.dev/asset/visitor-with-badge-1005a3"
+ },
+ "person_backpack": {
+  "id": "student-with-backpack-65d2b4",
+  "title": "Student with Backpack",
+  "source": "https://polyfork.dev/asset/student-with-backpack-65d2b4"
+ },
+ "person_hiker": {
+  "id": "hiker-visitor-d10aa5",
+  "title": "Hiker Visitor",
+  "source": "https://polyfork.dev/asset/hiker-visitor-d10aa5"
+ },
+ "person_doctor": {
+  "id": "doctor-d49de0",
+  "title": "Doctor",
+  "source": "https://polyfork.dev/asset/doctor-d49de0"
+ },
+ "person_guard": {
+  "id": "guard-bfa819",
+  "title": "Guard",
+  "source": "https://polyfork.dev/asset/guard-bfa819"
+ },
+ "person_tech": {
+  "id": "maintenance-technician-4bcfb8",
+  "title": "Maintenance Technician",
+  "source": "https://polyfork.dev/asset/maintenance-technician-4bcfb8"
+ },
+ "person_townswoman": {
+  "id": "townswoman-5aa87f",
+  "title": "Townswoman",
+  "source": "https://polyfork.dev/asset/townswoman-5aa87f"
+ },
+ "person_skater": {
+  "id": "street-skater-4ee28b",
+  "title": "Street Skater",
+  "source": "https://polyfork.dev/asset/street-skater-4ee28b"
+ },
+ "person_chef": {
+  "id": "carving-chef-102bf5",
+  "title": "Carving Chef",
+  "source": "https://polyfork.dev/asset/carving-chef-102bf5"
+ },
+ "person_nurse": {
+  "id": "ward-nurse-84b61d",
+  "title": "Ward Nurse",
+  "source": "https://polyfork.dev/asset/ward-nurse-84b61d"
+ },
+ "scroll": {
+  "id": "exercise-book-stack-266d9d",
+  "title": "Exercise Book Stack",
+  "source": "https://polyfork.dev/asset/exercise-book-stack-266d9d"
+ },
+ "car_wagon": {
+  "id": "station-wagon-70s-11d67b",
+  "title": "Station-wagon-70s",
+  "source": "https://polyfork.dev/asset/station-wagon-70s-11d67b"
+ },
+ "car_muscle": {
+  "id": "muscle-car-60s-524d46",
+  "title": "Muscle-car-60s",
+  "source": "https://polyfork.dev/asset/muscle-car-60s-524d46"
+ },
+ "home_boombox": {
+  "id": "boombox-d0048f",
+  "title": "Boombox",
+  "source": "https://polyfork.dev/asset/boombox-d0048f"
+ },
+ "home_jukebox": {
+  "id": "jukebox-1e2ea6",
+  "title": "Jukebox",
+  "source": "https://polyfork.dev/asset/jukebox-1e2ea6"
+ },
+ "home_turntable": {
+  "id": "turntable-6415d2",
+  "title": "Turntable",
+  "source": "https://polyfork.dev/asset/turntable-6415d2"
+ },
+ "neon_window": {
+  "id": "neon-window-sign-92a889",
+  "title": "Neon Window Sign",
+  "source": "https://polyfork.dev/asset/neon-window-sign-92a889"
+ },
+ "neon_pylon": {
+  "id": "neon-sign-pylon-dcc03c",
+  "title": "Neon Sign Pylon",
+  "source": "https://polyfork.dev/asset/neon-sign-pylon-dcc03c"
+ },
+ "motel_neon": {
+  "id": "motel-neon-sign-bde547",
+  "title": "Motel Neon Sign",
+  "source": "https://polyfork.dev/asset/motel-neon-sign-bde547"
+ },
+ "roller_skate": {
+  "id": "roller-skate-1c38cf",
+  "title": "Roller Skate",
+  "source": "https://polyfork.dev/asset/roller-skate-1c38cf"
+ },
+ "home_shellchair": {
+  "id": "motel-shell-chair-8a22f6",
+  "title": "Motel Shell Chair",
+  "source": "https://polyfork.dev/asset/motel-shell-chair-8a22f6"
+ },
+ "payphone": {
+  "id": "payphone-stand-f97728",
+  "title": "Payphone Stand",
+  "source": "https://polyfork.dev/asset/payphone-stand-f97728"
+ },
+ "person_roller": {
+  "id": "roller-skater-841ec1",
+  "title": "Roller Skater",
+  "source": "https://polyfork.dev/asset/roller-skater-841ec1"
+ },
+ "person_filmer": {
+  "id": "skate-filmer-b9d393",
+  "title": "Skate Filmer",
+  "source": "https://polyfork.dev/asset/skate-filmer-b9d393"
+ },
+ "person_waitress": {
+  "id": "diner-waitress-60f6a1",
+  "title": "Diner Waitress",
+  "source": "https://polyfork.dev/asset/diner-waitress-60f6a1"
+ },
+ "street_diner": {
+  "id": "street-diner-40fc87",
+  "title": "Street Diner",
+  "source": "https://polyfork.dev/asset/street-diner-40fc87"
+ },
+ "motel_office": {
+  "id": "motel-office-104c3a",
+  "title": "Motel Office",
+  "source": "https://polyfork.dev/asset/motel-office-104c3a"
+ },
+ "home_arcade": {
+  "id": "arcade-console-ec27c2",
+  "title": "Arcade Console",
+  "source": "https://polyfork.dev/asset/arcade-console-ec27c2"
+ },
+ "home_lounge": {
+  "id": "lounge-sofa-c34b3e",
+  "title": "Lounge Sofa",
+  "source": "https://polyfork.dev/asset/lounge-sofa-c34b3e"
+ },
+ "home_armchair2": {
+  "id": "lounge-armchair-5a72ca",
+  "title": "Lounge Armchair",
+  "source": "https://polyfork.dev/asset/lounge-armchair-5a72ca"
+ }
+}

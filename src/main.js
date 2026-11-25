@@ -2,6 +2,7 @@ import './style.css';
 import './ui/mobile.css';
 import './ui/mobile.js';
 import { loadAtlas } from './render/atlas.js';
+import { loadManifest, loadModels, modelKeys } from './render/models.js';
 import { World } from './render/world.js';
 import { App, show, renderHUD, renderNav } from './ui/app.js';
 import { initModals, initToasts, $ } from './ui/dom.js';
@@ -12,6 +13,7 @@ import './ui/title.js';
 import './ui/drive.js';
 import './ui/home.js';
 import './ui/legacy.js';
+import './ui/retro.css';
 import { S, restore, save } from './core/state.js';
 import { startAccount, flushCloud } from './auth/cloud.js';
 import { openAccount } from './ui/account.js';
@@ -20,7 +22,9 @@ import * as G from './game.js';
 
 async function boot() {
   initModals($('#modals')); initToasts($('#toasts'));
-  await loadAtlas();
+  await Promise.all([loadAtlas(), loadManifest()]);
+  const loading = $('#loading');
+  await loadModels(modelKeys(), (done, total) => { if (loading) loading.textContent = `LOADING… ${Math.round(100 * done / total)}%`; });
   App.world = new World($('#world'), $('#labels'));
   App.world.buildOffice({ villain: false, home: 'couch', gear: [], certs: [], chapter: 1 });
   await restore();
