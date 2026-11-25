@@ -14,8 +14,8 @@ import './ui/drive.js';
 import './ui/home.js';
 import './ui/legacy.js';
 import './ui/retro.css';
-import { S, restore, save } from './core/state.js';
-import { startAccount, flushCloud } from './auth/cloud.js';
+import { S, setState, discardLocal } from './core/state.js';
+import { startAccount, flushCloud, signedInEmail, userId, pushCloud } from './auth/cloud.js';
 import { openAccount } from './ui/account.js';
 import { mkNode, storyJob } from './data/jobs.js';
 import * as G from './game.js';
@@ -27,12 +27,27 @@ async function boot() {
   await loadModels(modelKeys(), (done, total) => { if (loading) loading.textContent = `LOADING… ${Math.round(100 * done / total)}%`; });
   App.world = new World($('#world'), $('#labels'));
   App.world.buildOffice({ villain: false, home: 'couch', gear: [], certs: [], chapter: 1 });
-  await restore();
+  const leftover = await discardLocal();
   const account = await startAccount();
+  if (leftover && !S) {
+    setState(leftover);
+    if (signedInEmail()) {
+      S.owner = userId();
+      try { await pushCloud(); }
+      catch { delete S.owner; }
+    }
+  }
   show('title');
   if (account.recovery) openAccount({ recovery: true });
   $('#loading')?.remove();
-  window.addEventListener('beforeunload', () => { if (S) save(); flushCloud(); });
+  window.addEventListener('beforeunload', event => {
+    if (!S) return;
+    if (signedInEmail()) flushCloud();
+    else {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
   window.__uptime = { App, show, G, mkNode, storyJob, get S() { return S; } }; // handy for debugging in the console
 }
 boot().catch(e => { console.error(e); const l = $('#loading'); if (l) l.textContent = 'Failed to load: ' + e.message; });

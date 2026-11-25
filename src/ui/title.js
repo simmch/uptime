@@ -1,39 +1,52 @@
 // Title screen, intro and endings.
-import { h, $, money, toast } from './dom.js';
+import { h, $, money, toast, confirmBox } from './dom.js';
 import './rooftop.css';
 import { openAudioSettings } from './audio.js';
 import { startRooftop } from '../render/rooftop.js';
 import { App, registerScreen, show, renderHUD, runStory, dialogue } from './app.js';
-import { S, setState, newState, load, save, wipe, title as titleOf, xpForLevel } from '../core/state.js';
-import { loadSaveFile } from './savefile.js';
+import { S, setState, newState, save, wipe, title as titleOf, xpForLevel } from '../core/state.js';
 import { openAccount } from './account.js';
-import { signedInEmail, pushCloud, accountError } from '../auth/cloud.js';
+import { signedInEmail, userId, pushCloud, accountError } from '../auth/cloud.js';
 import { ENDINGS } from '../data/story.js';
 import { sfx } from '../audio/sfx.js';
 
 registerScreen('title', {
   enter(root) {
     $('#hud').style.display = 'none';
-    const saved = load();
+    const who = signedInEmail();
+    const held = Boolean(who && S?.owner === userId());
+    const unsaved = Boolean(S && !held);
     const name = h('input', { class: 'txt', placeholder: 'Your name', 'aria-label': 'Your character’s name',
-      value: saved?.name || '', maxlength: 18 });
+      value: S?.name || '', maxlength: 18 });
     const canvas = h('canvas', { class: 'rooftop-canvas', 'aria-hidden': 'true' });
     const thought = h('p', { class: 'rooftop-thought' });
     const newGame = h('form', { onsubmit: async event => {
       event.preventDefault();
-      const onAccount = signedInEmail();
-      if ((saved || onAccount) && !confirm(`Start a new game? Your current save will be replaced.${onAccount ? ' The copy on your account is replaced too.' : ''}`)) return;
+      if (S) {
+        const ok = await confirmBox(who
+          ? 'Start a new game? The save on your account is replaced.'
+          : 'Start a new game? The one in this tab is dropped.', { ok: 'New game' });
+        if (!ok) return;
+      }
       wipe();
       const player = newState(name.value.trim() || 'Chris');
       player.flags.drivePending = true;
+      if (who) player.owner = userId();
       setState(player);
       save({ remote: false });
-      if (onAccount) {
+      if (who) {
         try { await pushCloud(); }
-        catch (error) { toast(accountError(error), 'bad'); }
+        catch (error) { toast(accountError(error), 'bad'); return; }
       }
       startGame();
-    } }, name, h('button', { class: 'btn big' + (saved ? ' ghost' : ''), type: 'submit' }, 'New game'));
+    } }, name, h('button', { class: 'btn big' + ((held || unsaved) ? ' ghost' : ''), type: 'submit' }, 'New game'));
+    const note = held
+      ? h('p', { class: 'save-note' }, `${S.name} · day ${S.day} · level ${S.level}`, h('br'), `Saved to ${who}`)
+      : unsaved
+        ? h('p', { class: 'save-note' }, `${S.name} · day ${S.day} · level ${S.level}`, h('br'), who ? 'Not on your account yet.' : 'Not saved yet. Create an account to keep it.')
+        : h('p', { class: 'save-note' }, who
+          ? `Signed in as ${who}. A new game is saved to that account.`
+          : 'An account is how you save. Play now and create one later, or leave and the progress is gone.');
     root.append(h('main', { class: 'rooftop-title', 'aria-labelledby': 'game-logo' },
       canvas,
       h('div', { class: 'rooftop-heading' },
@@ -41,11 +54,13 @@ registerScreen('title', {
         h('p', { class: 'rooftop-tagline' }, 'a cloud architect’s story')),
       thought,
       h('div', { class: 'rooftop-menu' },
-        saved && h('button', { class: 'btn big', type: 'button', onclick: () => { setState(saved); startGame(); } }, 'Continue'),
-        saved && h('p', { class: 'save-note' }, `${saved.name} · day ${saved.day} · level ${saved.level}`, h('br'), 'Saved on this device'),
+        (held || unsaved) && h('button', { class: 'btn big', type: 'button', onclick: () => startGame() }, 'Continue'),
+        note,
         newGame,
-        h('button', { class: 'btn ghost', type: 'button', onclick: async () => { if (await loadSaveFile()) startGame(); } }, 'Load a save file'),
-        h('button', { class: 'btn ghost', type: 'button', onclick: () => openAccount() }, signedInEmail() ? `Account · ${signedInEmail()}` : 'Account'),
+        who
+          ? h('button', { class: 'btn' + (unsaved ? '' : ' ghost'), type: 'button', onclick: () => openAccount() }, unsaved ? 'Save to account' : `Account · ${who}`)
+          : h('button', { class: 'btn' + (unsaved ? '' : ' ghost'), type: 'button', onclick: () => openAccount({ view: unsaved ? 'create' : 'sign-in' }) }, unsaved ? 'Save this game' : 'Sign in'),
+        who ? null : h('button', { class: 'btn ghost', type: 'button', onclick: () => openAccount({ view: unsaved ? 'sign-in' : 'create' }) }, unsaved ? 'Sign in' : 'Create account'),
         h('button', { class: 'btn ghost audio-entry', type: 'button', onclick: openAudioSettings }, 'Audio settings'))));
     this.stopRooftop = startRooftop(canvas, thought);
   },
@@ -87,15 +102,27 @@ registerScreen('ending', {
         h('p', { class: 'muted' }, 'Everything you used to win is real. VPCs, Multi-AZ, Aurora Global, Kubernetes, Terraform, WAF, SCPs, the 7 Rs. Go build things — the good kind.'),
         h('div', { class: 'row gap center' },
           h('button', { class: 'btn big', onclick: () => newGamePlus() }, 'New Game+ (keep skills & certs)'),
-          h('button', { class: 'btn ghost', onclick: () => location.reload() }, 'Title'))));
+          h('button', { class: 'btn ghost', onclick: async () => {
+            if (!signedInEmail() && S && !(await confirmBox('Leave? This game is not on an account, so it will be gone.', { ok: 'Leave' }))) return;
+            location.reload();
+          } }, 'Title'))));
     }
   },
 });
 
-function newGamePlus() {
+async function newGamePlus() {
   const keep = { skills: S.skills, certs: S.certs, codexRead: S.codexRead, name: S.name, domainXP: S.domainXP };
   const s = newState(keep.name);
   const lvl = Math.max(1, Math.floor(S.level / 2));
   Object.assign(s, keep, { level: lvl, xp: xpForLevel(lvl), sp: 3, money: 5000, flags: { ngplus: true } });
-  setState(s); save(); location.reload();
+  if (signedInEmail()) s.owner = userId();
+  setState(s);
+  save({ remote: false });
+  if (signedInEmail()) {
+    try { await pushCloud(); location.reload(); }
+    catch (error) { toast(accountError(error), 'bad'); }
+    return;
+  }
+  toast('Create an account to keep this new game. Leaving without one drops it.', 'warn', 5600);
+  openAccount({ view: 'create' });
 }

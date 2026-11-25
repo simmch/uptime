@@ -1,8 +1,7 @@
 // Account session and the one cloud save that belongs to it.
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_KEY } from './public.js';
-import { S, setState, save, load } from '../core/state.js';
-import { newerSave } from '../core/save.js';
+import { S, setState } from '../core/state.js';
 import { on, emit } from '../core/events.js';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -18,6 +17,7 @@ supabase.auth.onAuthStateChange((event, next) => {
 });
 
 export function signedInEmail() { return session?.user?.email || null; }
+export function userId() { return session?.user?.id || null; }
 export function takeRecovery() {
   const pending = recoveryPending;
   recoveryPending = false;
@@ -137,21 +137,37 @@ export function flushCloud() {
   if (session && S) pushCloud().catch(error => emit('cloud-error', accountError(error)));
 }
 
-// Keep whichever copy was written last, then make the account and this device agree.
+export async function accountSave() {
+  const remote = await pullCloud();
+  if (remote && session && !remote.owner) remote.owner = session.user.id;
+  return remote;
+}
+
+// The account is the save. A game already on this account follows the newer
+// copy. A different game in this tab waits for the player to choose.
 export async function reconcile() {
   if (!session) return 'signed-out';
-  const remote = await pullCloud();
-  const local = S || load();
-  const best = newerSave(local, remote);
-  if (!best) return 'empty';
-  const remoteAt = remote?.savedAt || 0;
-  const localAt = local?.savedAt || 0;
-  if (remote && remoteAt > localAt) {
-    setState(best);
-    save({ remote: false });
+  const remote = await accountSave();
+  if (!S) {
+    if (!remote) return 'empty';
+    setState(remote);
     return 'loaded';
   }
-  if (!S) setState(best);
+  if (!remote) return keepCurrentGame();
+  if (S.owner === session.user.id) {
+    if ((remote.savedAt || 0) > (S.savedAt || 0)) {
+      setState(remote);
+      return 'loaded';
+    }
+    return keepCurrentGame();
+  }
+  return 'conflict';
+}
+
+export async function keepCurrentGame() {
+  if (!session || !S) return 'empty';
+  S.owner = session.user.id;
+  S.savedAt = Date.now();
   await pushCloud();
-  return remote ? 'stored' : 'stored';
+  return 'stored';
 }

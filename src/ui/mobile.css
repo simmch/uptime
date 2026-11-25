@@ -78,6 +78,7 @@ html.phone #hud { height: 50px; padding: 4px 8px; gap: 6px; }
 html.phone .hud-left { min-width: 0; gap: 4px; }
 html.phone .hud-left > span:first-child { display: none; }
 html.phone .hud-name { font-size: 9px; }
+html.phone .hud-save { font-size: 14px; }
 html.phone .hud-title, html.phone .hud-right, html.phone .hud-mid small { display: none; }
 html.phone .hud-mid { gap: 8px; font-size: 17px; }
 html.phone .hud-mid .stat:nth-child(n + 4) { display: none; }

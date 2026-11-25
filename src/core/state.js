@@ -87,7 +87,6 @@ export function setState(s) {
 
 let backupChain = Promise.resolve();
 let databasePromise = null;
-let reportedStoreFailure = false;
 
 function readLocal() {
   try {
@@ -140,34 +139,28 @@ async function readBackup() {
   return json ? unpackSave(json) : null;
 }
 
+// Progress lives in memory until an account stores it. save() stamps the
+// moment and lets a signed-in session copy it to the account.
 export function save({ remote = true } = {}) {
   if (!S) return false;
   S.savedAt = Date.now();
-  const json = JSON.stringify(S);
-  let stored = false;
-  try { localStorage.setItem(SAVE_KEY, json); stored = true; } catch { /* quota or private mode */ }
-  writeBackup(json);
-  if (stored) reportedStoreFailure = false;
-  else if (!reportedStoreFailure) { reportedStoreFailure = true; emit('save-failed'); }
   if (remote) emit('saved');
-  return stored;
+  return true;
 }
 
 export function load() { return readLocal(); }
 
-// Called once at startup, before the title screen, so a backup can refill
-// localStorage before Continue decides whether a game is waiting.
-export async function restore() {
+export function clearState() { S = null; }
+
+// Drop any game left on this device. Returns it once so a current visit can
+// still offer to put that game on an account.
+export async function discardLocal() {
   const local = readLocal();
   let backup = null;
   try { backup = await readBackup(); } catch { /* storage unavailable */ }
   const best = newerSave(local, backup);
-  if (!best) return null;
-  const json = JSON.stringify(best);
-  if (JSON.stringify(local) !== json) {
-    try { localStorage.setItem(SAVE_KEY, json); } catch { /* keep the backup */ }
-  }
-  if (JSON.stringify(backup) !== json) writeBackup(json);
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+  await writeBackup(null);
   return best;
 }
 

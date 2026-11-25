@@ -10,6 +10,7 @@ import { popularityBonus, workBreak } from '../data/life.js';
 import { setAtComputer, syncMusic } from '../audio/music.js';
 import * as G from '../game.js';
 import { sfx } from '../audio/sfx.js';
+import { signedInEmail } from '../auth/cloud.js';
 
 export const App = { world: null, screen: 'office', screens: {}, busy: false };
 
@@ -39,7 +40,12 @@ export function renderHUD() {
     h('div', { class: 'hud-left' },
       h('span', { html: icon(S.villain ? 'hacker' : 'player', 40) }),
       h('div', {},
-        h('div', { class: 'hud-name' }, S.name, h('span', { class: 'hud-title' }, ' · ' + title())),
+        h('div', { class: 'hud-name' }, S.name, h('span', { class: 'hud-title' }, ' · ' + title()),
+          h('button', {
+            class: 'hud-save' + (signedInEmail() ? ' saved' : ''),
+            type: 'button',
+            onclick: () => App.openAccount?.(),
+          }, signedInEmail() ? 'Saved' : 'Save game')),
         h('div', { class: 'xpbar' }, h('div', { style: { width: pctXp + '%' } }), h('span', {}, `LV ${S.level}  ${num(Math.max(0, S.xp - lvlCur))}/${num(lvlNext - lvlCur)} XP`)))),
     h('div', { class: 'hud-mid' },
       h('div', { class: 'stat money ' + (S.money < 0 ? 'neg' : ''), title: credit ? `Credit line: $${credit.toLocaleString()}` : 'No credit line — going negative at rent time means trouble' }, h('span', { html: icon('coins', 22) }), money(S.money)),
@@ -244,7 +250,6 @@ export function acceptJob(job) {
 App.labs = { start: () => toast('Labs not loaded') };
 
 on('levelup', ups => { for (const u of ups) toast(`${icon('star', 20)} <b>LEVEL ${u.level}</b> · +${u.sp} skill point${u.sp > 1 ? 's' : ''}`, 'good', 4500); renderNav(); });
-on('save-failed', () => toast('This browser could not store your progress. Download a save file from Save & Settings before you leave.', 'bad', 6000));
 on('state', () => renderHUD());
 on('money', () => renderHUD());
 export { esc, confirmBox, save };

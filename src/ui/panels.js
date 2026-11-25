@@ -2,8 +2,7 @@
 import { h, $, money, num, modal, toast, confirmBox } from './dom.js';
 import { icon, pixelIcon } from '../render/atlas.js';
 import { App, renderHUD, renderNav, show, runStory, dialogue } from './app.js';
-import { S, save, wipe, exportSave, importSave, skillState, learnSkill, CERTS, HOMES, GEAR, spend, canSpend, gainXP, domainLevel, earn, newState, setState } from '../core/state.js';
-import { downloadSave, loadSaveFile } from './savefile.js';
+import { S, save, wipe, skillState, learnSkill, CERTS, HOMES, GEAR, spend, canSpend, gainXP, domainLevel, earn, newState, setState } from '../core/state.js';
 import { SKILLS, SKILL } from '../data/skills.js';
 import { DOMAINS, DOMAIN_IDS } from '../data/domains.js';
 import { CODEX, codexEntry } from '../data/codex.js';
@@ -15,7 +14,7 @@ import * as G from '../game.js';
 import { sfx } from '../audio/sfx.js';
 import { openAudioSettings } from './audio.js';
 import { accountSummary } from './account.js';
-import { signedInEmail, pushCloud } from '../auth/cloud.js';
+import { signedInEmail, userId, pushCloud, accountError } from '../auth/cloud.js';
 import { hasTouch } from './mobile.js';
 import { HOUSING_ROOMS, ROOM_NAMES } from '../data/legacy.js';
 
@@ -261,36 +260,38 @@ App.panels.log = function () {
 
 // ═════════════ SETTINGS ═════════════
 App.panels.settings = function () {
-  const ta = h('textarea', { class: 'txt', rows: 3, placeholder: 'Paste a save code to import' });
-  const when = S.savedAt ? ` Last saved ${new Date(S.savedAt).toLocaleString()}.` : '';
+  const who = signedInEmail();
+  const when = who && S.savedAt ? ` Last stored ${new Date(S.savedAt).toLocaleString()}.` : '';
+  let close = () => {};
   const body = h('div', {},
     accountSummary(),
-    h('p', {}, `Progress saves on this device after every action, and it is waiting when you come back.${when} ${signedInEmail() ? 'A signed-in game is also copied to your account.' : 'Download a file if you want a copy you can load on another browser.'}`),
+    h('p', {}, who
+      ? `This game is saved to ${who}.${when} Sign in on any browser to pick it up.`
+      : 'This game lasts until you leave. Create an account to keep it. Close the tab without one and the progress is gone.'),
     h('div', { class: 'row gap wrap' },
-      h('button', { class: 'btn', onclick: () => { if (save()) toast('Saved on this device.'); else toast('Could not store the save here. Download a file instead.', 'bad'); } }, 'Save now'),
-      h('button', { class: 'btn ghost', onclick: () => downloadSave() }, 'Download save file'),
-      h('button', { class: 'btn ghost', onclick: async () => { if (await loadSaveFile()) location.reload(); } }, 'Load save file'),
+      h('button', { class: 'btn', onclick: () => {
+        if (!who) { close(); App.openAccount?.({ view: 'create' }); return; }
+        save({ remote: false });
+        pushCloud().then(() => { toast('Saved to your account.', 'good'); renderHUD(); }).catch(error => toast(accountError(error), 'bad'));
+      } }, who ? 'Save now' : 'Save to an account'),
       h('button', { class: 'btn ghost', onclick: openAudioSettings }, 'Audio settings'),
       h('button', { class: 'btn danger', onclick: async () => {
-        if (!(await confirmBox(`Delete your save and start over?${signedInEmail() ? ' The copy on your account is replaced too.' : ''}`, { ok: 'Delete' }))) return;
+        if (!(await confirmBox(who ? 'Start a new game? The save on your account is replaced.' : 'Start a new game? The one in this tab is dropped.', { ok: 'New game' }))) return;
         await wipe();
         const player = newState(S?.name || 'Chris');
         player.flags.drivePending = true;
+        if (who) player.owner = userId();
         setState(player);
         save({ remote: false });
-        if (signedInEmail()) {
+        if (who) {
           try { await pushCloud(); }
-          catch { toast('The new game is on this device, but the account copy could not be replaced.', 'bad'); return; }
+          catch (error) { toast(accountError(error), 'bad'); return; }
+          location.reload();
+          return;
         }
-        location.reload();
+        close();
+        show('drive', { onArrival: () => { show('office'); renderHUD(); runStory(); } });
       } }, 'New game')),
-    h('details', { class: 'save-code' },
-      h('summary', {}, 'Save code'),
-      h('p', { class: 'small muted' }, 'A save code is the same progress as the file, packed into text you can paste.'),
-      ta,
-      h('div', { class: 'row gap wrap' },
-        h('button', { class: 'btn ghost small', onclick: () => { navigator.clipboard?.writeText(exportSave()); toast('Save code copied to clipboard.'); } }, 'Copy save code'),
-        h('button', { class: 'btn ghost small', onclick: () => { try { importSave(ta.value); toast('Imported.'); location.reload(); } catch { toast('Invalid save code.', 'bad'); } } }, 'Import code'))),
     h('div', { class: 'panel-title' }, 'CONTROLS'),
     h('ul', { class: 'small' }, (hasTouch() ? [
       'Drive: hold the on-screen pedal. Release it to stop.',
@@ -307,7 +308,8 @@ App.panels.settings = function () {
     ]).map(text => h('li', {}, text))),
     h('div', { class: 'panel-title' }, 'CREDITS'),
     h('p', { class: 'small muted' }, '3D models and icons: Polyfork (polyfork.dev), CC BY 4.0 — the full list with links is in CREDITS.md. Character animations: Quaternius Universal Animation Library (CC0). Post-processing: postprocessing by Raoul van Rüschen (Zlib). Fallback pixel sprites: Pixel Art Atlas 1.4M by Angais (CC0). Rendering: three.js. Prices are simplified approximations of public cloud list prices for teaching.'));
-  modal(body, { title: 'SAVE & SETTINGS' });
+  const dialog = modal(body, { title: 'SAVE & SETTINGS' });
+  close = () => dialog.close();
 };
 
 // ═════════════ PRACTICE ═════════════

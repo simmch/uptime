@@ -1,12 +1,12 @@
 // Sign in, create an account, and replace a forgotten password.
 import './account.css';
-import { h, modal, toast } from './dom.js';
+import { h, modal, toast, confirmBox, esc } from './dom.js';
 import { App, show, renderHUD } from './app.js';
 import { on } from '../core/events.js';
-import { S, load, setState } from '../core/state.js';
+import { S, setState, clearState, save } from '../core/state.js';
 import {
   signedInEmail, signUp, signIn, signOut, requestTemporaryPassword, setPermanentPassword,
-  accountError, reconcile, pushCloud,
+  accountError, reconcile, pushCloud, accountSave, keepCurrentGame,
 } from '../auth/cloud.js';
 
 on('cloud-error', message => toast(message, 'bad', 5200));
@@ -14,7 +14,7 @@ on('cloud-error', message => toast(message, 'bad', 5200));
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const field = (label, input) => h('label', { class: 'stack' }, h('span', {}, label), input);
 
-export function openAccount({ recovery = false } = {}) {
+export function openAccount({ recovery = false, view = 'home' } = {}) {
   const root = h('div', { class: 'account' });
   const dialog = modal(root, { title: 'ACCOUNT' });
   let busy = false;
@@ -35,9 +35,30 @@ export function openAccount({ recovery = false } = {}) {
 
   const finish = async message => {
     if (!signedInEmail()) { toast(message, 'good', 5600); return; }
-    const result = await reconcile();
-    const extra = result === 'loaded' ? ' Your cloud save is the newer one, so it is loaded here.' : ' This game is stored on your account.';
+    let result = await reconcile();
+    if (result === 'conflict') {
+      const remote = await accountSave();
+      const keep = await confirmBox(
+        `This account already has a game for <b>${esc(remote?.name || 'someone')}</b>, day ${remote?.day || 1}. Save the game you are playing onto the account, or load the one already there?`,
+        { ok: 'Save this game', cancel: 'Load account save', title: 'Two games' },
+      );
+      if (keep) result = await keepCurrentGame();
+      else {
+        setState(remote);
+        result = 'loaded';
+      }
+    }
+    const extra = {
+      loaded: ' Your account save is ready.',
+      stored: ' This game is saved to your account.',
+      empty: ' Start a game and it is saved to your account.',
+    }[result] || '';
     toast(message + extra, 'good', 5200);
+    if (result === 'loaded' && App.screen !== 'title') {
+      dialog.close();
+      location.reload();
+      return;
+    }
     backToGame();
   };
 
@@ -45,23 +66,26 @@ export function openAccount({ recovery = false } = {}) {
     const who = signedInEmail();
     if (who) {
       root.replaceChildren(
-        h('p', {}, `Signed in as ${who}. Progress on this device is copied to that account.`),
+        h('p', {}, `Signed in as ${who}. The account holds the save. Sign in again on any browser to pick the game up.`),
         h('div', { class: 'row gap wrap' },
           h('button', { class: 'btn', type: 'button', onclick: () => run(async () => {
-            if (!S && load()) setState(load());
-            if (!S) return toast('Start or continue a game first.', 'info');
+            if (!S) return toast('Start a game first.', 'info');
+            save({ remote: false });
             await pushCloud();
             toast('Saved to your account.', 'good');
-          }) }, 'Save to account'),
+            renderHUD();
+          }) }, 'Save now'),
           h('button', { class: 'btn ghost', type: 'button', onclick: () => run(async () => {
+            if (S) { save({ remote: false }); await pushCloud(); }
             await signOut();
-            toast('Signed out.');
+            if (App.screen === 'title') clearState();
+            toast(App.screen === 'title' ? 'Signed out.' : 'Signed out. The account has the game up to now. Anything you do next lasts until you leave.', 'info', 5200);
             backToGame();
           }) }, 'Sign out')));
       return;
     }
     root.replaceChildren(
-      h('p', {}, 'An account keeps your game in the cloud. Sign in on any browser and the save is there.'),
+      h('p', {}, 'An account is the save. Play now and create one when you want to keep the game. Leave without one and the progress is gone.'),
       h('div', { class: 'row gap wrap' },
         h('button', { class: 'btn', type: 'button', onclick: () => signInForm() }, 'Sign in'),
         h('button', { class: 'btn ghost', type: 'button', onclick: () => createForm() }, 'Create account')),
@@ -96,7 +120,7 @@ export function openAccount({ recovery = false } = {}) {
       run(async () => {
         const data = await signUp(email.value.trim(), password.value);
         if (!data.session) {
-          toast('Check your email and confirm the account, then sign in.', 'good', 6000);
+          toast('Check your email and confirm the account, then sign in. Keep this tab open so this game is still here to save.', 'good', 7000);
           signInForm(email.value.trim());
           return;
         }
@@ -163,6 +187,8 @@ export function openAccount({ recovery = false } = {}) {
   };
 
   if (recovery) chooseNew('', true);
+  else if (view === 'sign-in') signInForm();
+  else if (view === 'create') createForm();
   else home();
 }
 
@@ -173,11 +199,13 @@ export function accountSummary() {
     box.replaceChildren(
       h('div', { class: 'panel-title' }, 'ACCOUNT'),
       who
-        ? h('p', {}, `Signed in as ${who}. Progress on this device is copied to that account.`)
-        : h('p', {}, 'Sign in to keep this game on your account and open it in any browser.'),
+        ? h('p', {}, `Signed in as ${who}. This game is saved to that account.`)
+        : h('p', {}, 'This game lasts until you leave. Create an account to keep it, then sign in to pick it up.'),
       h('div', { class: 'row gap wrap' },
         h('button', { class: 'btn', type: 'button', onclick: () => openAccount() }, who ? 'Account' : 'Sign in or create account')));
   };
   paint();
   return box;
 }
+
+App.openAccount = openAccount;
